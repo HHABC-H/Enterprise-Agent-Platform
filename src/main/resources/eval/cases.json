@@ -1,0 +1,6 @@
+[
+  {"question":"平台支持什么文档切分格式？","expectedAnswer":"Markdown","type":"single-hop"},
+  {"question":"没有权限的文档会参与检索吗？","expectedAnswer":"无权限文档不会参与检索","type":"single-hop"},
+  {"question":"证据不足时系统如何处理？","expectedAnswer":"证据不足时系统会拒答","type":"single-hop"},
+  {"question":"火星基地的管理员是谁？","expectedAnswer":"","type":"reject"}
+]

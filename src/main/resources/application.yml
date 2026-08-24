@@ -1,0 +1,51 @@
+spring:
+  application:
+    name: enterprise-agent-platform
+  profiles:
+    default: local
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+ai-platform:
+  retrieval:
+    query-rewrite-enabled: false
+    rerank-enabled: false
+    candidate-limit: 20
+    minimum-rrf-score: 0.016
+    minimum-token-overlap: 0.15
+  workflow:
+    max-reflections: 3
+  memory:
+    type: memory
+    max-messages: 20
+    ttl-seconds: 3600
+  llm:
+    enabled: ${AI_PLATFORM_LLM_ENABLED:false}
+    base-url: ${AI_PLATFORM_LLM_BASE_URL:}
+    api-key: ${AI_PLATFORM_LLM_API_KEY:}
+    model-name: ${AI_PLATFORM_LLM_MODEL_NAME:}
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+---
+spring:
+  config:
+    activate:
+      on-profile: docker
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+ai-platform:
+  memory:
+    type: redis

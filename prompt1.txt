@@ -1,0 +1,100 @@
+# 企业级 AI 智能体平台：可运行 MVP 实现任务
+
+你是一名资深 Java / Spring Boot AI 应用工程师。请在现有工作区实现一个基于 Java 17、Spring Boot 3.x 与 LangChain4j 的企业级 AI 智能体平台 MVP。
+
+目标是交付可启动、可验证的最小闭环，而不是一次性生成九个模块的空壳。先完成本提示词定义的 P0 范围；P1、P2 仅保留清晰的接口边界和后续扩展设计，除非我明确要求继续实现。
+
+## 工作方式与约束
+
+1. 先检查当前仓库的目录结构、构建工具、已有代码与配置；不要覆盖或删除无关文件。
+2. 先输出简短实施计划、技术风险和准备修改的文件清单；随后直接实施，不要停在方案阶段。
+3. 使用项目实际存在且版本兼容的依赖与 API。不得编造 LangChain4j、LangGraph4j、Spring Data、ParadeDB 或其他库中不存在的类、方法或配置。
+4. 如果指定组件在当前版本不可用、依赖冲突，或需要外部凭据：说明原因，选择可编译、可替换的适配器实现，并在 README 写明替换方式。不得把猜测当作已验证的集成结果。
+5. 所有代码注释、Javadoc、README 和接口错误信息使用中文；包路径使用 `com.agent.{module}`。
+6. 外部系统（LLM、Embedding、重排模型、PostgreSQL/pgvector、Neo4j、Redis、RabbitMQ）必须通过端口接口隔离；具体实现放在 `infrastructure` 包。不得在业务服务中直接耦合 SDK。
+7. 密钥只能由环境变量或本地未提交配置提供；不得写入真实密钥、token 或私有地址。
+
+## 技术栈
+
+- Java 17、Spring Boot 3.x、Maven
+- LangChain4j：模型调用的适配层；如当前依赖无法支持工作流图编排，使用本项目自定义的、可测试的状态机接口，不假定存在某个图编排 API
+- PostgreSQL + pgvector：向量与文档元数据
+- ParadeDB：全文检索扩展；本地环境不可用时提供可替换的全文检索端口与降级实现说明
+- Neo4j：知识图谱（P1）
+- Redis：会话记忆与缓存（P0 可使用接口 + 可运行本地实现）
+- RabbitMQ：知识入库异步事件（P1）
+- Micrometer、Prometheus、Grafana：指标与展示
+
+## P0：本次必须实现并验证的最小闭环
+
+### 1. 文档切分
+
+- 定义 `DocumentParser` 与 `DocumentSplitter` 端口。
+- P0 至少支持 Markdown 文本；PDF、Word、图片 OCR 只保留扩展接口与明确的未实现提示，不要伪造解析能力。
+- 实现 `MarkdownHeadingSplitter`：优先按三级及以内标题切分；单块超过 1500 字符时继续按段落、再按字符边界切分。
+- 定义 `Chunk`：`chunkId`、`documentId`、`content`、`headingPath`、`metadata`（来源、版本、权限标签）。
+- 为切分规则编写单元测试，覆盖标题路径、超长分块和无标题文本。
+
+### 2. 权限感知的混合检索链路
+
+- 定义 `EmbeddingService`、`VectorSearchPort`、`FullTextSearchPort`、`RerankPort`、`SearchPipeline` 与 `EvidenceValidator` 接口。
+- 查询顺序必须是：权限预过滤 → 查询改写（可配置关闭） → 向量检索和全文检索并行 → RRF 融合（`k=60`） → 可选重排 → Top-5 → 证据充分性判定。
+- P0 可以提供确定性的本地 stub / in-memory 实现，使无模型、无数据库时仍能启动、测试与演示；生产适配器必须从环境变量读取模型配置。
+- 检索结果必须返回分数、来源、文档 ID、Chunk ID 与拒答原因（若证据不足）。
+- 实现 `SecurityFilter`：按 `tenantId`、`userId` 与文档权限标签过滤。无权限结果不得参与 RRF 与重排。
+- 为 RRF、权限过滤、低置信度拒答分别编写单元测试。
+
+### 3. 会话记忆
+
+- 定义 `MemoryStore` 和 `MemoryManager`。
+- 短期记忆键规范：`session:{sessionId}`，滑动窗口最多 20 条、TTL 1 小时。
+- P0 提供可运行的内存实现；如果 Redis 可用，再提供 Redis 适配器和配置开关。
+- 只允许服务端校验通过的记忆候选写入长期画像；不信任 LLM 直接写入的结构化数据。
+
+### 4. Agent 状态机与 REST API
+
+- 实现可测试的状态机：`PLANNING -> EXECUTING -> REFLECTING -> REPLANNING`，最大反思次数 3 次；超过上限或证据不足时进入明确的失败/拒答状态。
+- 不依赖未经验证的图编排库 API；使用状态、事件、转移和持久化检查点接口表达工作流边界。
+- 至少提供以下 REST API，并给出请求/响应示例：
+  - `POST /api/documents/markdown`：提交 Markdown 文档并返回文档及 Chunk 信息。
+  - `POST /api/chat`：输入 `tenantId`、`userId`、`sessionId`、`question`，返回答案/拒答、证据列表和状态机轨迹。
+  - `POST /api/evaluations/run`：使用内置 JSON 评测样例执行最小评测并返回指标。
+- 统一异常响应、参数校验、traceId，并为关键 API 至少编写一组 Spring Boot 集成测试。
+
+### 5. 可运行环境与可观测性
+
+- 提供 `application.yml`，包含 `local` 与 `docker` 配置示例，所有敏感配置均引用环境变量。
+- 提供 `docker-compose.yml`：至少包含 PostgreSQL（含 pgvector）、Redis、Prometheus、Grafana；Neo4j、RabbitMQ、ParadeDB 可作为 P1 profile，前提是镜像、初始化方式和依赖关系真实可用。
+- 暴露 Spring Boot Actuator 与 Micrometer 指标；至少记录检索耗时、命中数、拒答次数与状态机执行次数。
+- 更新 README：启动步骤、环境变量、API 示例、测试命令、P0 已验证范围与 P1/P2 未实现边界。
+
+## P1：只设计接口和任务清单，不在本次强行实现
+
+- 父子索引与 Neo4j 图谱：`Document-[:CONTAINS]->Chunk-[:RELATES_TO]->Entity`，多跳查询端口。
+- RabbitMQ 驱动的增量入库：内容 SHA-256、版本号、幂等标识、旧 Chunk 删除、重新切分、向量化、批量写入。
+- 人工审批节点、暂停/恢复检查点、Supervisor-Worker 并发协作。
+- JSON Schema 结构化输出、反思草案/批评/修正链路。
+
+## P2：后续评测与生产化
+
+- JSON 评测集字段：`question`、`expected_answer`、`type`（`single-hop`、`multi-hop`、`task`、`reject`）。
+- 支持 Hit@K、Context Precision、Context Recall、Faithfulness、Answer Relevancy 等指标；没有可靠依赖或数据时不得声称已计算 Ragas 指标。
+- Bad Case 回归集、版本对比仪表盘和生产级数据库迁移。
+
+## 验收标准
+
+完成前必须实际执行并报告结果：
+
+1. Maven 编译与测试命令成功；若受环境限制失败，给出完整命令、失败原因和已完成的静态验证边界。
+2. 在不配置外部模型密钥的情况下，local profile 能启动，并用确定性 stub 跑通“Markdown 入库 → 有权限检索 → 聊天返回证据”。
+3. 无权限文档不会出现在检索结果；证据不足时 API 返回拒答而非编造答案。
+4. README 中的 API 示例能与实际 DTO、路径和配置一致。
+
+## 最终交付格式
+
+完成后请按以下结构汇报：
+
+1. 已实现功能与对应文件。
+2. 实际执行的验证命令和结果。
+3. 需要外部服务或密钥才能验证的部分，以及未验证原因。
+4. P1/P2 的下一步建议。
