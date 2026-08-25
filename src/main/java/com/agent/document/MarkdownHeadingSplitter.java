@@ -1,3 +1,8 @@
+/**
+ * 本文件定义 {@code MarkdownHeadingSplitter}，负责文档解析、切分、索引及父子块模型。
+ *
+ * <p>这里集中表达该模块的职责边界，具体实现细节以方法和接口契约为准。</p>
+ */
 package com.agent.document;
 
 import java.nio.charset.StandardCharsets;
@@ -12,9 +17,11 @@ import org.springframework.stereotype.Component;
 @Component
 public class MarkdownHeadingSplitter implements DocumentSplitter {
 
+    /** 单个检索子块的最大 Unicode 码点数，避免截断表情等代理对字符。 */
     private static final int MAX_CHARS = 1500;
     private static final Pattern HEADING = Pattern.compile("^(#{1,3})\\s+(.+?)\\s*$");
 
+    /** 按一至三级标题维护层级路径，再把超长段落拆为可稳定定位的子块。 */
     @Override
     public List<Chunk> split(ParsedDocument document) {
         List<Section> sections = new ArrayList<>();
@@ -62,6 +69,7 @@ public class MarkdownHeadingSplitter implements DocumentSplitter {
         content.setLength(0);
     }
 
+    /** 优先按自然段切分；单段超限时再按 Unicode 码点强制分段。 */
     private List<String> splitLongText(String text) {
         if (text.codePointCount(0, text.length()) <= MAX_CHARS) {
             return List.of(text);
@@ -102,6 +110,7 @@ public class MarkdownHeadingSplitter implements DocumentSplitter {
         }
     }
 
+    /** 以 SHA-256 生成与文档顺序、内容绑定的稳定子块标识。 */
     private String sha256(String value) {
         try {
             byte[] digest = MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));

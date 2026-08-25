@@ -2,4 +2,7 @@ target/
 .idea/
 .vscode/
 .env
+src/main/resources/application-local.yml
 .firecrawl/
+frontend/node_modules/
+frontend/dist/

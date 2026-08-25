@@ -1,3 +1,8 @@
+/**
+ * 本文件定义 {@code ApplicationConfiguration}，负责应用属性与运行时 Bean 装配。
+ *
+ * <p>这里集中表达该模块的职责边界，具体实现细节以方法和接口契约为准。</p>
+ */
 package com.agent.config;
 
 import java.time.Clock;

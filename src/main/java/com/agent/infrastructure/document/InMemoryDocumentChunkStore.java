@@ -1,3 +1,8 @@
+/**
+ * 本文件定义 {@code InMemoryDocumentChunkStore}，负责外部基础设施和本地替代实现适配器。
+ *
+ * <p>这里集中表达该模块的职责边界，具体实现细节以方法和接口契约为准。</p>
+ */
 package com.agent.infrastructure.document;
 
 import com.agent.document.Chunk;
@@ -13,8 +18,8 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class InMemoryDocumentChunkStore implements DocumentChunkStore {
 
-    private final CopyOnWriteArrayList<Chunk> chunks = new CopyOnWriteArrayList<>();
-    private final ConcurrentHashMap<String, ParentChunk> parents = new ConcurrentHashMap<>();
+    private static final CopyOnWriteArrayList<Chunk> chunks = new CopyOnWriteArrayList<>();
+    private static final ConcurrentHashMap<String, ParentChunk> parents = new ConcurrentHashMap<>();
 
     @Override
     public void save(String documentId, List<ParentChunk> newParents, List<Chunk> newChunks) {
