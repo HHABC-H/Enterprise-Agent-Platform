@@ -9,6 +9,7 @@ import com.agent.ingestion.IngestionState;
 import com.agent.ingestion.IngestionTaskStatus;
 import com.agent.ingestion.IngestionTaskStore;
 import com.agent.ingestion.KnowledgeDocumentChangedEvent;
+import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Map;
@@ -19,11 +20,16 @@ import org.springframework.stereotype.Component;
 
 /** 基于唯一幂等键的 PostgreSQL 入库任务仓储。 */
 @Component
-@Profile("docker")
+@Profile({"docker", "local-docker"})
 public class JdbcIngestionTaskStore implements IngestionTaskStore {
     private final NamedParameterJdbcTemplate jdbc;
     private final Clock clock;
     public JdbcIngestionTaskStore(NamedParameterJdbcTemplate jdbc, Clock clock) { this.jdbc = jdbc; this.clock = clock; }
+    @Override public void enqueue(KnowledgeDocumentChangedEvent event) {
+        String sql = "INSERT INTO knowledge_ingestion_task (idempotency_key, event_id, tenant_id, document_id, version, state, attempts, failure_reason, updated_at, trace_id) "
+                + "VALUES (:key, :eventId, :tenantId, :documentId, :version, 'QUEUED', 0, NULL, :updatedAt, :traceId) ON CONFLICT (idempotency_key) DO NOTHING";
+        jdbc.update(sql, parameters(event));
+    }
     @Override public boolean tryStart(KnowledgeDocumentChangedEvent event) {
         String sql = "INSERT INTO knowledge_ingestion_task (idempotency_key, event_id, tenant_id, document_id, version, state, attempts, failure_reason, updated_at, trace_id) "
                 + "VALUES (:key, :eventId, :tenantId, :documentId, :version, 'PROCESSING', 1, NULL, :updatedAt, :traceId) "
@@ -50,10 +56,11 @@ public class JdbcIngestionTaskStore implements IngestionTaskStore {
     }
     private void update(KnowledgeDocumentChangedEvent event, IngestionState state, String reason) {
         jdbc.update("UPDATE knowledge_ingestion_task SET state = :state, failure_reason = :reason, updated_at = :updatedAt WHERE idempotency_key = :key",
-                Map.of("state", state.name(), "reason", reason == null ? "" : reason, "updatedAt", Instant.now(clock), "key", event.idempotencyKey()));
+                Map.of("state", state.name(), "reason", reason == null ? "" : reason, "updatedAt", now(), "key", event.idempotencyKey()));
     }
     private Map<String, Object> parameters(KnowledgeDocumentChangedEvent event) {
         return Map.of("key", event.idempotencyKey(), "eventId", event.eventId(), "tenantId", event.tenantId(), "documentId", event.documentId(),
-                "version", event.version(), "updatedAt", Instant.now(clock), "traceId", event.traceId() == null ? "" : event.traceId());
+                "version", event.version(), "updatedAt", now(), "traceId", event.traceId() == null ? "" : event.traceId());
     }
+    private Timestamp now() { return Timestamp.from(Instant.now(clock)); }
 }

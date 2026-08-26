@@ -14,18 +14,28 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/workflows")
 public class WorkflowController {
     private final AgentWorkflowService workflows;
-    public WorkflowController(AgentWorkflowService workflows) { this.workflows = workflows; }
-    @GetMapping("/{workflowId}") public ApiResponse<WorkflowCheckpoint> get(@PathVariable String workflowId) { return ApiResponse.of(workflows.get(workflowId)); }
+    private final IdentityGuard identityGuard;
+    public WorkflowController(AgentWorkflowService workflows, IdentityGuard identityGuard) { this.workflows = workflows; this.identityGuard = identityGuard; }
+    @GetMapping("/{workflowId}") public ApiResponse<WorkflowCheckpoint> get(@PathVariable String workflowId) {
+        WorkflowCheckpoint checkpoint = workflows.get(workflowId); identityGuard.assertTenant(checkpoint.tenantId()); return ApiResponse.of(checkpoint);
+    }
+    @GetMapping("/pending")
+    public ApiResponse<java.util.List<WorkflowCheckpoint>> pending(@RequestParam String tenantId, @RequestParam String userId,
+                                                                      @RequestParam(defaultValue = "false") boolean approver) {
+        identityGuard.assertRequestIdentity(tenantId, userId);
+        return ApiResponse.of(workflows.pending(tenantId, userId, identityGuard.isApprover()));
+    }
     @PostMapping("/{workflowId}/approval")
     public ApiResponse<ChatResponse> approve(@PathVariable String workflowId, @Valid @RequestBody ApprovalRequest request) {
-        WorkflowResult result = workflows.resume(workflowId, request.approverId(), request.version(), request.decision(), request.comment());
-        return ApiResponse.of(new ChatResponse(null, result.searchResponse().decision().sufficient() ? false : true,
-                result.searchResponse().decision().refusalReason(), result.searchResponse().evidence().stream().map(EvidenceResponse::from).toList(), result.trace(), result.workflowId(), false));
+        WorkflowResult result = workflows.resume(workflowId, identityGuard.approverId(request.approverId()), request.version(), request.decision(), request.comment());
+        return ApiResponse.of(new ChatResponse(null, !result.searchResponse().decision().sufficient(),
+                result.searchResponse().decision().refusalReason(), result.searchResponse().evidence().stream().map(EvidenceResponse::from).toList(), result.trace(), result.workflowId(), false, false));
     }
 }

@@ -44,7 +44,7 @@ public class KnowledgeIngestionProcessor {
             metrics.recordIngestion();
             try {
                 metrics.recordIngestionDuration(() -> {
-                DocumentRevision revision = revisions.find(event.tenantId(), event.documentId())
+                DocumentRevision revision = revisions.find(event.tenantId(), event.documentId(), event.version())
                         .filter(item -> item.contentHash().equals(event.contentHash()) && item.metadata().version().equals(event.version()))
                         .orElseThrow(() -> new IllegalArgumentException("未找到匹配的当前文档版本。"));
                 if (event.operation() == DocumentOperation.DELETE) {

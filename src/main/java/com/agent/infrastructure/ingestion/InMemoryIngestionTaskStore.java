@@ -24,6 +24,11 @@ public class InMemoryIngestionTaskStore implements IngestionTaskStore {
     private final ConcurrentHashMap<String, String> latestByDocument = new ConcurrentHashMap<>();
     private final Clock clock;
     public InMemoryIngestionTaskStore(Clock clock) { this.clock = clock; }
+    @Override public void enqueue(KnowledgeDocumentChangedEvent event) {
+        events.putIfAbsent(event.idempotencyKey(), new IngestionTaskStatus(event.eventId(), event.tenantId(), event.documentId(), event.version(),
+                IngestionState.QUEUED, 0, null, Instant.now(clock), event.traceId()));
+        latestByDocument.put(key(event), event.idempotencyKey());
+    }
     @Override public boolean tryStart(KnowledgeDocumentChangedEvent event) {
         AtomicBoolean accepted = new AtomicBoolean();
         events.compute(event.idempotencyKey(), (ignored, old) -> {

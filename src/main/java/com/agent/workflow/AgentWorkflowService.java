@@ -7,6 +7,7 @@ package com.agent.workflow;
 
 import com.agent.config.AgentPlatformProperties;
 import com.agent.metrics.PlatformMetrics;
+import com.agent.api.TraceIdHolder;
 import com.agent.retrieval.SearchPipeline;
 import com.agent.retrieval.SearchResponse;
 import java.time.Clock;
@@ -54,7 +55,7 @@ public class AgentWorkflowService {
                     String workflowId = UUID.randomUUID().toString(); trace.add(WorkflowState.WAITING_APPROVAL);
                     Instant now = Instant.now(clock);
                     checkpointPort.create(new WorkflowCheckpoint(workflowId, tenantId, userId, sessionId, summarize(question), "GENERATE_ANSWER",
-                            WorkflowState.WAITING_APPROVAL, now, now.plus(Duration.ofMinutes(15)), null, 0, null, null, null, trace));
+                            WorkflowState.WAITING_APPROVAL, now, now.plus(Duration.ofMinutes(15)), TraceIdHolder.get(), 0, null, null, null, trace));
                     metrics.recordApprovalWaiting();
                     return new WorkflowResult(response, trace, workflowId, true);
                 }
@@ -82,6 +83,7 @@ public class AgentWorkflowService {
         return execute(checkpoint.tenantId(), checkpoint.ownerUserId(), checkpoint.sessionId(), checkpoint.inputSummary(), false);
     }
     public WorkflowCheckpoint get(String workflowId) { return checkpointPort.find(workflowId).orElseThrow(() -> new IllegalArgumentException("未找到审批工作流。")); }
+    public List<WorkflowCheckpoint> pending(String tenantId, String userId, boolean approver) { return checkpointPort.findPending(tenantId, userId, approver); }
     private String summarize(String question) { return question.length() > 200 ? question.substring(0, 200) : question; }
     private java.util.Set<String> approvers() {
         String value = System.getenv().getOrDefault("AI_PLATFORM_WORKFLOW_APPROVER_IDS", "reviewer");

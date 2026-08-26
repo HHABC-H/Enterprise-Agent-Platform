@@ -9,5 +9,6 @@ import java.util.Optional;
 
 public interface DocumentRevisionStore {
     Optional<DocumentRevision> find(String tenantId, String documentId);
+    Optional<DocumentRevision> find(String tenantId, String documentId, String version);
     void save(DocumentRevision revision);
 }

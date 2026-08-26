@@ -1,5 +1,23 @@
 # 企业级 AI 智能体平台
 
+## P2 生产化与评测闭环
+
+P2 在不改变既有 Markdown 入库和 `/api/chat` 请求字段的前提下，新增 `graphEvidenceUsed` 响应字段。当前普通聊天未调用图谱证据，该字段始终为 `false`；图谱独立查询成功不代表聊天已经使用 GraphRAG。
+
+评测接口提供不可变的数据集版本、JSON 导入/导出、异步运行、结果查询、未开始运行取消、重跑与基线对比：`/api/evaluation-datasets`、`/api/evaluation-runs`、`/api/bad-cases`。写请求必须传递租户和用户；docker profile 还会校验 JWT 的 `tenant_id`、`sub` 与 `ROLE_APPROVER`，local profile 保持原有演示方式。
+
+Ragas 默认关闭，结果会明确标记为 `NOT_COMPUTED`，不会生成模拟分数。Java 本地指标包含样例通过率、证据命中、拒答与平均耗时；外部 Ragas 服务仅在显式配置后才会被调用。
+
+数据库结构唯一来源为 `src/main/resources/db/migration/`。Flyway 在 docker profile 使用迁移账户执行迁移，应用账户仅获得表级 DML 权限。待审批工作流、评测版本/运行/单例结果和 Bad Case 都以 `tenant_id` 与乐观锁字段隔离和保护。
+
+Docker Compose 已加入命名卷、Redis/RabbitMQ 端口、固定 ParadeDB 镜像、Grafana 仪表盘和 Prometheus 告警。ParadeDB、RabbitMQ、Neo4j 与 Redis 的真实容器联调尚未执行；本轮只允许 Compose 静态校验。后续获得授权后可运行：
+
+```powershell
+docker compose --env-file .env up --build
+```
+
+容器启动后应验证健康检查、幂等入库、消息重试/死信、Neo4j 受限查询、ParadeDB 检索、重启后的审批恢复及评测指标；未完成这些步骤前不得宣称外部服务已真实集成。
+
 基于 Java 17 与 Spring Boot 的企业知识问答最小闭环。所有检索均先执行租户与权限过滤；当证据不足时拒答，不生成无依据答案。
 
 ## 实现矩阵

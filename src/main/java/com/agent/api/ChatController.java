@@ -16,11 +16,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/chat")
 public class ChatController {
     private final ChatService chatService;
-    public ChatController(ChatService chatService) { this.chatService = chatService; }
+    private final IdentityGuard identityGuard;
+    public ChatController(ChatService chatService, IdentityGuard identityGuard) { this.chatService = chatService; this.identityGuard = identityGuard; }
 
     /** 接收经参数校验的对话请求，并将领域结果转换为统一的 HTTP 响应。 */
     @PostMapping
     public ApiResponse<ChatResponse> chat(@Valid @RequestBody ChatRequest request) {
+        identityGuard.assertRequestIdentity(request.tenantId(), request.userId());
         return ApiResponse.of(ChatResponse.from(chatService.chat(request.tenantId(), request.userId(), request.sessionId(), request.question(), request.approvalRequired())));
     }
 }

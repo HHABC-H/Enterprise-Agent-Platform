@@ -23,7 +23,7 @@ import org.springframework.stereotype.Component;
 /** ParadeDB BM25 查询适配器；故障时仅返回空全文结果，向量链路和权限过滤继续生效。 */
 @Component
 @Primary
-@Profile("docker")
+@Profile({"docker", "local-docker"})
 public class ParadeDbFullTextSearchAdapter implements FullTextSearchPort {
     private static final Logger log = LoggerFactory.getLogger(ParadeDbFullTextSearchAdapter.class);
     private final NamedParameterJdbcTemplate jdbc;

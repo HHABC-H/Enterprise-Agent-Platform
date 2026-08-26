@@ -19,7 +19,7 @@ import org.springframework.stereotype.Component;
 
 /** ParadeDB 的批量全文索引写入适配器，所有数据均通过绑定参数传递。 */
 @Component
-@Profile("docker")
+@Profile({"docker", "local-docker"})
 public class ParadeDbDocumentIndexStore implements DocumentIndexStore {
     private final NamedParameterJdbcTemplate jdbc;
     public ParadeDbDocumentIndexStore(NamedParameterJdbcTemplate jdbc) { this.jdbc = jdbc; }

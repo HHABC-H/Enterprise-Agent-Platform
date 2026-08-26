@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 
 /** 消费端只委托给幂等处理器；处理器内部有限重试后抛错，容器将消息送入死信队列。 */
 @Component
-@Profile("docker")
+@Profile({"docker", "local-docker"})
 public class RabbitMqKnowledgeIngestionConsumer {
     private final KnowledgeIngestionProcessor processor;
     public RabbitMqKnowledgeIngestionConsumer(KnowledgeIngestionProcessor processor) { this.processor = processor; }

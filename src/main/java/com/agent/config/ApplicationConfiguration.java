@@ -29,4 +29,15 @@ public class ApplicationConfiguration {
         executor.initialize();
         return executor;
     }
+
+    @Bean
+    public Executor evaluationExecutor(AgentPlatformProperties properties) {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(Math.max(1, properties.getEvaluation().getConcurrency()));
+        executor.setMaxPoolSize(Math.max(1, properties.getEvaluation().getConcurrency()));
+        executor.setQueueCapacity(100);
+        executor.setThreadNamePrefix("evaluation-");
+        executor.initialize();
+        return executor;
+    }
 }

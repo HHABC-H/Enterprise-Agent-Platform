@@ -1,0 +1,15 @@
+groups:
+  - name: ai-platform-p2
+    rules:
+      - alert: 检索错误率过高
+        expr: sum(rate(agent_retrieval_refusals_total[5m])) > 20
+        for: 10m
+      - alert: 入库失败持续出现
+        expr: sum(rate(agent_ingestion_failure_total[5m])) > 0
+        for: 5m
+      - alert: 审批积压增长
+        expr: sum(rate(agent_approval_waiting_total[15m])) > 10
+        for: 15m
+      - alert: 评测运行失败
+        expr: sum(rate(agent_evaluation_failures_total[5m])) > 0
+        for: 5m

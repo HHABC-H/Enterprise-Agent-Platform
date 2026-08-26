@@ -13,11 +13,15 @@ public class AgentPlatformProperties {
     private final Workflow workflow = new Workflow();
     private final Memory memory = new Memory();
     private final Llm llm = new Llm();
+    private final Evaluation evaluation = new Evaluation();
+    private final Auth auth = new Auth();
 
     public Retrieval getRetrieval() { return retrieval; }
     public Workflow getWorkflow() { return workflow; }
     public Memory getMemory() { return memory; }
     public Llm getLlm() { return llm; }
+    public Evaluation getEvaluation() { return evaluation; }
+    public Auth getAuth() { return auth; }
 
     public static class Retrieval {
         private boolean queryRewriteEnabled;
@@ -68,5 +72,36 @@ public class AgentPlatformProperties {
         public void setApiKey(String value) { apiKey = value; }
         public String getModelName() { return modelName; }
         public void setModelName(String value) { modelName = value; }
+    }
+
+    /** 评测执行与可选 Ragas 服务的受控配置。 */
+    public static class Evaluation {
+        private int concurrency = 2;
+        private int timeoutSeconds = 30;
+        private final Ragas ragas = new Ragas();
+        public int getConcurrency() { return concurrency; }
+        public void setConcurrency(int value) { concurrency = value; }
+        public int getTimeoutSeconds() { return timeoutSeconds; }
+        public void setTimeoutSeconds(int value) { timeoutSeconds = value; }
+        public Ragas getRagas() { return ragas; }
+    }
+
+    public static class Ragas {
+        private boolean enabled;
+        private String baseUrl;
+        public boolean isEnabled() { return enabled; }
+        public void setEnabled(boolean value) { enabled = value; }
+        public String getBaseUrl() { return baseUrl; }
+        public void setBaseUrl(String value) { baseUrl = value; }
+    }
+
+    /** 本项目本地签发 JWT 的配置。 */
+    public static class Auth {
+        private String jwtSecret = "local-development-jwt-secret-must-be-replaced";
+        private long jwtTtlSeconds = 86400;
+        public String getJwtSecret() { return jwtSecret; }
+        public void setJwtSecret(String value) { jwtSecret = value; }
+        public long getJwtTtlSeconds() { return jwtTtlSeconds; }
+        public void setJwtTtlSeconds(long value) { jwtTtlSeconds = value; }
     }
 }

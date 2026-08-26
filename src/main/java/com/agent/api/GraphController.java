@@ -16,12 +16,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/graph")
 public class GraphController {
     private final GraphRelationSearchPort graph;
-    public GraphController(GraphRelationSearchPort graph) { this.graph = graph; }
+    private final IdentityGuard identityGuard;
+    public GraphController(GraphRelationSearchPort graph, IdentityGuard identityGuard) { this.graph = graph; this.identityGuard = identityGuard; }
     @GetMapping("/relations")
     public ApiResponse<GraphRelationResponse> relations(@RequestParam String tenantId, @RequestParam String userId,
                                                          @RequestParam String documentId, @RequestParam String version,
                                                          @RequestParam(defaultValue = "1") int maxHops,
                                                          @RequestParam(defaultValue = "20") int limit) {
+        identityGuard.assertRequestIdentity(tenantId, userId);
         return ApiResponse.of(new GraphRelationResponse(graph.available(), graph.search(new GraphRelationQuery(tenantId, userId, documentId, version, maxHops, limit))));
     }
 }

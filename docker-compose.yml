@@ -4,38 +4,48 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: docker
       REDIS_HOST: redis
-      POSTGRES_URL: jdbc:postgresql://postgres:5432/agent_platform
-      POSTGRES_USER: agent
+      REDIS_PORT: 6379
+      POSTGRES_URL: jdbc:postgresql://paradedb:5432/agent_platform
+      POSTGRES_USER: agent_owner
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?请在.env中设置POSTGRES_PASSWORD}
+      POSTGRES_APP_USER: agent_app
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:?请在.env中设置POSTGRES_APP_PASSWORD}
       NEO4J_URI: bolt://neo4j:7687
       NEO4J_USER: neo4j
       NEO4J_PASSWORD: ${NEO4J_PASSWORD:?请在.env中设置NEO4J_PASSWORD}
       RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
       RABBITMQ_USER: agent
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?请在.env中设置RABBITMQ_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?请在.env中设置JWT_SECRET}
       AI_PLATFORM_LLM_ENABLED: "false"
     ports: ["8080:8080"]
     depends_on:
-      postgres: { condition: service_healthy }
+      paradedb: { condition: service_healthy }
       redis: { condition: service_healthy }
       neo4j: { condition: service_healthy }
       rabbitmq: { condition: service_healthy }
-  postgres:
-    image: paradedb/paradedb:latest
+  paradedb:
+    image: paradedb/paradedb:0.23.4
     environment:
       POSTGRES_DB: agent_platform
-      POSTGRES_USER: agent
+      POSTGRES_USER: agent_owner
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?请在.env中设置POSTGRES_PASSWORD}
+      APP_DB_USER: agent_app
+      APP_DB_PASSWORD: ${POSTGRES_APP_PASSWORD:?请在.env中设置POSTGRES_APP_PASSWORD}
     volumes:
-      - ./db/init/01-paradedb.sql:/docker-entrypoint-initdb.d/01-paradedb.sql:ro
+      - paradedb-data:/var/lib/postgresql
+      - ./db/init/00-create-app-role.sh:/docker-entrypoint-initdb.d/00-create-app-role.sh:ro
     ports: ["5432:5432"]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U agent -d agent_platform"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 3s
       retries: 20
   redis:
     image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: ["redis-data:/data"]
     ports: ["6379:6379"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -46,6 +56,7 @@ services:
     image: neo4j:5.26-community
     environment:
       NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:?请在.env中设置NEO4J_PASSWORD}
+    volumes: ["neo4j-data:/data", "neo4j-logs:/logs"]
     ports: ["7474:7474", "7687:7687"]
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:7474 >/dev/null"]
@@ -57,6 +68,7 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: agent
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?请在.env中设置RABBITMQ_PASSWORD}
+    volumes: ["rabbitmq-data:/var/lib/rabbitmq"]
     ports: ["5672:5672", "15672:15672"]
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
@@ -66,13 +78,21 @@ services:
   prometheus:
     image: prom/prometheus:v3.2.1
     command: ["--config.file=/etc/prometheus/prometheus.yml"]
-    volumes: ["./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro"]
+    volumes: ["./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro", "./observability/alerts.yml:/etc/prometheus/alerts.yml:ro", "prometheus-data:/prometheus"]
     ports: ["9090:9090"]
     depends_on: [app]
   grafana:
     image: grafana/grafana:11.5.2
     environment:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?请在.env中设置GRAFANA_ADMIN_PASSWORD}
-    volumes: ["./observability/grafana-datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml:ro"]
+    volumes: ["./observability/grafana-datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml:ro", "./observability/grafana-dashboard.yml:/etc/grafana/provisioning/dashboards/dashboard.yml:ro", "./observability/dashboards:/var/lib/grafana/dashboards:ro", "grafana-data:/var/lib/grafana"]
     ports: ["3000:3000"]
     depends_on: [prometheus]
+volumes:
+  paradedb-data:
+  redis-data:
+  neo4j-data:
+  neo4j-logs:
+  rabbitmq-data:
+  prometheus-data:
+  grafana-data:

@@ -19,7 +19,7 @@ import org.springframework.context.annotation.Profile;
 
 /** RabbitMQ 队列拓扑：消费失败且本地三次重试耗尽后进入死信队列，由人工重试。 */
 @Configuration
-@Profile("docker")
+@Profile({"docker", "local-docker"})
 public class RabbitMqIngestionConfiguration {
     @Bean public DirectExchange knowledgeExchange() { return new DirectExchange("knowledge.ingestion", true, false); }
     @Bean public DirectExchange knowledgeDeadLetterExchange() { return new DirectExchange("knowledge.ingestion.dlx", true, false); }

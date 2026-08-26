@@ -12,6 +12,17 @@ import org.junit.jupiter.api.Test;
 
 class InMemoryIngestionTaskStoreTest {
     @Test
+    void 任务入队后可立即查询状态() {
+        InMemoryIngestionTaskStore store = new InMemoryIngestionTaskStore(Clock.fixed(Instant.parse("2026-08-24T00:00:00Z"), ZoneOffset.UTC));
+        KnowledgeDocumentChangedEvent queued = event("queued");
+
+        store.enqueue(queued);
+
+        assertThat(store.findLatest("tenant-a", "doc-queued").orElseThrow().state()).isEqualTo(IngestionState.QUEUED);
+        assertThat(store.findLatest("tenant-a", "doc-queued").orElseThrow().attempts()).isZero();
+    }
+
+    @Test
     void 相同事件只处理一次且失败最多尝试三次() {
         InMemoryIngestionTaskStore store = new InMemoryIngestionTaskStore(Clock.fixed(Instant.parse("2026-08-24T00:00:00Z"), ZoneOffset.UTC));
         KnowledgeDocumentChangedEvent once = event("same");

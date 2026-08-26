@@ -27,7 +27,7 @@ import org.springframework.stereotype.Component;
 
 /** Neo4j 图谱适配器：查询模板固定，租户、文档、版本与访问条件均在 Cypher 中约束。 */
 @Component
-@Profile("docker")
+@Profile({"docker", "local-docker"})
 public class Neo4jGraphRelationSearchAdapter implements GraphRelationSearchPort {
     private static final Pattern ENTITY = Pattern.compile("`([^`]{1,80})`|\\b[A-Z][A-Za-z0-9_]{2,}\\b");
     private static final TransactionConfig QUERY_TIMEOUT = TransactionConfig.builder().withTimeout(Duration.ofSeconds(2)).build();

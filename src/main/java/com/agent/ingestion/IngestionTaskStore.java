@@ -8,6 +8,7 @@ package com.agent.ingestion;
 import java.util.Optional;
 
 public interface IngestionTaskStore {
+    void enqueue(KnowledgeDocumentChangedEvent event);
     boolean tryStart(KnowledgeDocumentChangedEvent event);
     void markSuccess(KnowledgeDocumentChangedEvent event);
     void markFailure(KnowledgeDocumentChangedEvent event, String reason, boolean finalFailure);

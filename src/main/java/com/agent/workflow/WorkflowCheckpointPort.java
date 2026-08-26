@@ -12,6 +12,7 @@ public interface WorkflowCheckpointPort {
     void save(String sessionId, List<WorkflowState> states);
     default void create(WorkflowCheckpoint checkpoint) { throw new UnsupportedOperationException("当前检查点仓储不支持审批。"); }
     default Optional<WorkflowCheckpoint> find(String workflowId) { return Optional.empty(); }
+    default List<WorkflowCheckpoint> findPending(String tenantId, String userId, boolean approver) { return List.of(); }
     default WorkflowCheckpoint decide(String workflowId, long version, String approverId, ApprovalDecision decision, String comment) {
         throw new UnsupportedOperationException("当前检查点仓储不支持审批。");
     }

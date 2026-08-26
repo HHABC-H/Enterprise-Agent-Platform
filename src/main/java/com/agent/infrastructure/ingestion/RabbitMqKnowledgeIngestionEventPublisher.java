@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 
 /** docker profile 的 RabbitMQ 发布适配器，消息头和正文都携带 traceId。 */
 @Component
-@Profile("docker")
+@Profile({"docker", "local-docker"})
 public class RabbitMqKnowledgeIngestionEventPublisher implements KnowledgeIngestionEventPublisher {
     private final RabbitTemplate rabbitTemplate;
     public RabbitMqKnowledgeIngestionEventPublisher(RabbitTemplate rabbitTemplate) { this.rabbitTemplate = rabbitTemplate; }

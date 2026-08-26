@@ -34,14 +34,22 @@ public class DocumentIngestionFacade {
      */
     public List<com.agent.document.Chunk> upsert(String documentId, String markdown, DocumentMetadata metadata) {
         String hash = ContentHashing.sha256(markdown);
-        if (revisions.find(metadata.tenantId(), documentId).map(item -> item.contentHash().equals(hash)).orElse(false)) {
+        if (revisions.find(metadata.tenantId(), documentId, metadata.version())
+                .map(item -> item.contentHash().equals(hash)).orElse(false)) {
             KnowledgeDocumentChangedEvent skipped = event(documentId, metadata, hash);
             tasks.markSkipped(skipped);
             return chunks.findAll().stream().filter(item -> item.documentId().equals(documentId))
                     .filter(item -> item.metadata().tenantId().equals(metadata.tenantId())).toList();
         }
         revisions.save(new DocumentRevision(metadata.tenantId(), documentId, markdown, metadata, hash, Instant.now(clock)));
-        publisher.publish(event(documentId, metadata, hash));
+        KnowledgeDocumentChangedEvent changed = event(documentId, metadata, hash);
+        tasks.enqueue(changed);
+        try {
+            publisher.publish(changed);
+        } catch (RuntimeException exception) {
+            tasks.markFailure(changed, safeReason(exception), true);
+            throw exception;
+        }
         List<com.agent.document.Chunk> result = chunks.findAll().stream().filter(item -> item.documentId().equals(documentId))
                 .filter(item -> item.metadata().tenantId().equals(metadata.tenantId())).toList();
         localMirror.replace(documentId, result);
@@ -58,5 +66,10 @@ public class DocumentIngestionFacade {
         String eventId = UUID.randomUUID().toString();
         return new KnowledgeDocumentChangedEvent(eventId, metadata.tenantId(), documentId, metadata.version(), hash, DocumentOperation.UPSERT,
                 Instant.now(clock), TraceIdHolder.get(), metadata.tenantId() + ":" + documentId + ":" + metadata.version() + ":" + hash);
+    }
+
+    private String safeReason(RuntimeException exception) {
+        String value = exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage();
+        return value.length() > 240 ? value.substring(0, 240) : value;
     }
 }

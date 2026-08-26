@@ -5,6 +5,9 @@
  */
 package com.agent.api;
 
+import com.agent.auth.InvalidCredentialsException;
+import com.agent.auth.UsernameAlreadyExistsException;
+
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
@@ -24,6 +27,18 @@ public class ApiExceptionHandler {
     @ExceptionHandler({IllegalArgumentException.class, UnsupportedOperationException.class})
     public ResponseEntity<ErrorResponse> handleBadRequest(RuntimeException exception) {
         return ResponseEntity.badRequest().body(new ErrorResponse(TraceIdHolder.get(), "BAD_REQUEST", exception.getMessage(), Map.of()));
+    }
+    @ExceptionHandler({SecurityException.class})
+    public ResponseEntity<ErrorResponse> handleForbidden(SecurityException exception) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ErrorResponse(TraceIdHolder.get(), "FORBIDDEN", exception.getMessage(), Map.of()));
+    }
+    @ExceptionHandler(UsernameAlreadyExistsException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateUsername(UsernameAlreadyExistsException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(new ErrorResponse(TraceIdHolder.get(), "USERNAME_EXISTS", exception.getMessage(), Map.of()));
+    }
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidCredentials(InvalidCredentialsException exception) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ErrorResponse(TraceIdHolder.get(), "INVALID_CREDENTIALS", exception.getMessage(), Map.of()));
     }
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleUnexpected(Exception exception) {

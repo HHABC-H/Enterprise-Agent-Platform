@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 
 /** 在 docker profile 中公开 ParadeDB 扩展和索引是否可查询，不暴露连接信息。 */
 @Component("paradeDb")
-@Profile("docker")
+@Profile({"docker", "local-docker"})
 public class ParadeDbHealthIndicator implements HealthIndicator {
     private final JdbcTemplate jdbc;
     public ParadeDbHealthIndicator(JdbcTemplate jdbc) { this.jdbc = jdbc; }

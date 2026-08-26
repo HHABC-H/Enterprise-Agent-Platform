@@ -15,8 +15,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Component;
+import org.springframework.context.annotation.Profile;
 
 @Component
+@Profile("local")
 public class InMemoryWorkflowCheckpointAdapter implements WorkflowCheckpointPort {
     private final ConcurrentHashMap<String, List<WorkflowState>> traces = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, WorkflowCheckpoint> checkpoints = new ConcurrentHashMap<>();
@@ -25,6 +27,11 @@ public class InMemoryWorkflowCheckpointAdapter implements WorkflowCheckpointPort
     @Override public void save(String sessionId, List<WorkflowState> states) { traces.put(sessionId, List.copyOf(states)); }
     @Override public void create(WorkflowCheckpoint checkpoint) { checkpoints.putIfAbsent(checkpoint.workflowId(), checkpoint); }
     @Override public Optional<WorkflowCheckpoint> find(String workflowId) { return Optional.ofNullable(checkpoints.get(workflowId)); }
+    @Override public List<WorkflowCheckpoint> findPending(String tenantId, String userId, boolean approver) {
+        return checkpoints.values().stream().filter(item -> item.tenantId().equals(tenantId))
+                .filter(item -> approver || item.ownerUserId().equals(userId))
+                .filter(item -> item.state() == WorkflowState.WAITING_APPROVAL).toList();
+    }
     @Override public WorkflowCheckpoint decide(String workflowId, long version, String approverId, ApprovalDecision decision, String comment) {
         return checkpoints.compute(workflowId, (ignored, current) -> {
             if (current == null) { throw new IllegalArgumentException("未找到审批工作流。"); }

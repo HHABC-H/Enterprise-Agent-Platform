@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: 平台仪表盘
+    folder: AI平台
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards

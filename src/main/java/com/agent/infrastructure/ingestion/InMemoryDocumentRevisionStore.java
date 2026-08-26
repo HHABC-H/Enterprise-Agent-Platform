@@ -17,9 +17,15 @@ import org.springframework.stereotype.Component;
 public class InMemoryDocumentRevisionStore implements DocumentRevisionStore {
     private final ConcurrentHashMap<String, DocumentRevision> revisions = new ConcurrentHashMap<>();
     @Override public Optional<DocumentRevision> find(String tenantId, String documentId) {
-        return Optional.ofNullable(revisions.get(tenantId + ":" + documentId));
+        return revisions.values().stream()
+                .filter(item -> item.tenantId().equals(tenantId) && item.documentId().equals(documentId))
+                .max(java.util.Comparator.comparing(DocumentRevision::updatedAt));
+    }
+    @Override public Optional<DocumentRevision> find(String tenantId, String documentId, String version) {
+        return Optional.ofNullable(revisions.get(key(tenantId, documentId, version)));
     }
     @Override public void save(DocumentRevision revision) {
-        revisions.put(revision.tenantId() + ":" + revision.documentId(), revision);
+        revisions.put(key(revision.tenantId(), revision.documentId(), revision.metadata().version()), revision);
     }
+    private String key(String tenantId, String documentId, String version) { return tenantId + ":" + documentId + ":" + version; }
 }

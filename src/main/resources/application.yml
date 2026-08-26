@@ -2,7 +2,9 @@ spring:
   application:
     name: enterprise-agent-platform
   profiles:
-    default: local
+    default: local-docker
+  flyway:
+    enabled: true
 
 management:
   endpoints:
@@ -35,6 +37,15 @@ ai-platform:
     base-url: ${AI_PLATFORM_LLM_BASE_URL:}
     api-key: ${AI_PLATFORM_LLM_API_KEY:}
     model-name: ${AI_PLATFORM_LLM_MODEL_NAME:}
+  evaluation:
+    concurrency: 2
+    timeout-seconds: 30
+    ragas:
+      enabled: ${AI_PLATFORM_RAGAS_ENABLED:false}
+      base-url: ${AI_PLATFORM_RAGAS_BASE_URL:}
+  auth:
+    jwt-secret: ${JWT_SECRET:local-development-jwt-secret-must-be-replaced}
+    jwt-ttl-seconds: ${JWT_TTL_SECONDS:86400}
 ---
 spring:
   config:
@@ -64,7 +75,10 @@ spring:
       port: ${REDIS_PORT}
   datasource:
     url: ${POSTGRES_URL}
-    username: ${POSTGRES_USER}
+    username: ${POSTGRES_APP_USER}
+    password: ${POSTGRES_APP_PASSWORD:}
+  flyway:
+    user: ${POSTGRES_USER}
     password: ${POSTGRES_PASSWORD:}
   neo4j:
     uri: ${NEO4J_URI}

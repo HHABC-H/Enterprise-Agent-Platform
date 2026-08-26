@@ -29,6 +29,13 @@ public class PlatformMetrics {
     private final Counter approvalWaitingCounter;
     private final Counter approvalApprovedCounter;
     private final Counter approvalRejectedCounter;
+    private final Counter evaluationCounter;
+    private final Counter evaluationFailureCounter;
+    private final Counter badCaseCreatedCounter;
+    private final Counter badCaseClosedCounter;
+    private final Counter regressionFixedCounter;
+    private final Counter regressionRegressedCounter;
+    private final Timer evaluationCaseTimer;
     public PlatformMetrics(MeterRegistry registry) {
         searchTimer = Timer.builder("agent.retrieval.duration").register(registry);
         refusalCounter = Counter.builder("agent.retrieval.refusals").register(registry);
@@ -44,6 +51,13 @@ public class PlatformMetrics {
         approvalWaitingCounter = Counter.builder("agent.approval.waiting").register(registry);
         approvalApprovedCounter = Counter.builder("agent.approval.approved").register(registry);
         approvalRejectedCounter = Counter.builder("agent.approval.rejected").register(registry);
+        evaluationCounter = Counter.builder("agent.evaluation.runs").register(registry);
+        evaluationFailureCounter = Counter.builder("agent.evaluation.failures").register(registry);
+        badCaseCreatedCounter = Counter.builder("agent.bad_case.created").register(registry);
+        badCaseClosedCounter = Counter.builder("agent.bad_case.closed").register(registry);
+        regressionFixedCounter = Counter.builder("agent.regression.fixed").register(registry);
+        regressionRegressedCounter = Counter.builder("agent.regression.regressed").register(registry);
+        evaluationCaseTimer = Timer.builder("agent.evaluation.case.duration").register(registry);
     }
     public <T> T recordSearch(Supplier<T> action) { return searchTimer.record(action); }
     public <T> T recordIngestionDuration(Supplier<T> action) { return ingestionTimer.record(action); }
@@ -59,4 +73,11 @@ public class PlatformMetrics {
     public void recordApprovalWaiting() { approvalWaitingCounter.increment(); }
     public void recordApprovalApproved() { approvalApprovedCounter.increment(); }
     public void recordApprovalRejected() { approvalRejectedCounter.increment(); }
+    public void recordEvaluation() { evaluationCounter.increment(); }
+    public void recordEvaluationFailure() { evaluationFailureCounter.increment(); }
+    public void recordBadCaseCreated() { badCaseCreatedCounter.increment(); }
+    public void recordBadCaseClosed() { badCaseClosedCounter.increment(); }
+    public void recordRegressionFixed() { regressionFixedCounter.increment(); }
+    public void recordRegressionRegressed() { regressionRegressedCounter.increment(); }
+    public <T> T recordEvaluationCase(Supplier<T> action) { return evaluationCaseTimer.record(action); }
 }
