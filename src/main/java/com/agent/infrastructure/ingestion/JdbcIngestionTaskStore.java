@@ -31,10 +31,8 @@ public class JdbcIngestionTaskStore implements IngestionTaskStore {
         jdbc.update(sql, parameters(event));
     }
     @Override public boolean tryStart(KnowledgeDocumentChangedEvent event) {
-        String sql = "INSERT INTO knowledge_ingestion_task (idempotency_key, event_id, tenant_id, document_id, version, state, attempts, failure_reason, updated_at, trace_id) "
-                + "VALUES (:key, :eventId, :tenantId, :documentId, :version, 'PROCESSING', 1, NULL, :updatedAt, :traceId) "
-                + "ON CONFLICT (idempotency_key) DO UPDATE SET state = 'PROCESSING', attempts = knowledge_ingestion_task.attempts + 1, failure_reason = NULL, updated_at = EXCLUDED.updated_at "
-                + "WHERE knowledge_ingestion_task.state = 'QUEUED'";
+        String sql = "UPDATE knowledge_ingestion_task SET state = 'PROCESSING', attempts = attempts + 1, failure_reason = NULL, updated_at = :updatedAt "
+                + "WHERE idempotency_key = :key AND state = 'QUEUED'";
         return jdbc.update(sql, parameters(event)) == 1;
     }
     @Override public void markSuccess(KnowledgeDocumentChangedEvent event) { update(event, IngestionState.SUCCESS, null); }

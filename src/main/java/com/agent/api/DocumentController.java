@@ -27,9 +27,10 @@ public class DocumentController {
     private final DocumentIngestionFacade ingestionFacade;
     private final IdentityGuard identityGuard;
     private final DocumentUploadMetadataService uploadMetadata;
+    private final DocumentCatalogService catalog;
     public DocumentController(DocumentService documentService, DocumentIngestionFacade ingestionFacade, IdentityGuard identityGuard,
-                              DocumentUploadMetadataService uploadMetadata) {
-        this.documentService = documentService; this.ingestionFacade = ingestionFacade; this.identityGuard = identityGuard; this.uploadMetadata = uploadMetadata;
+                              DocumentUploadMetadataService uploadMetadata, DocumentCatalogService catalog) {
+        this.documentService = documentService; this.ingestionFacade = ingestionFacade; this.identityGuard = identityGuard; this.uploadMetadata = uploadMetadata; this.catalog = catalog;
     }
 
     /** 保存 Markdown 当前版本并发布重建事件；未指定文档 ID 时由服务端生成。 */
@@ -48,6 +49,21 @@ public class DocumentController {
     public ApiResponse<DocumentUploadMetadata> preview(@Valid @RequestBody DocumentUploadMetadataPreviewRequest request) {
         identityGuard.assertTenant(request.tenantId());
         return ApiResponse.of(uploadMetadata.resolve(request.tenantId(), request.originalFileName()));
+    }
+
+    /** 返回当前登录用户可用于图谱查询的文档，不暴露正文与权限配置。 */
+    @GetMapping
+    public ApiResponse<List<DocumentCatalogItem>> documents(@RequestParam String tenantId, @RequestParam String userId) {
+        identityGuard.assertRequestIdentity(tenantId, userId);
+        return ApiResponse.of(catalog.documents(tenantId, userId));
+    }
+
+    /** 返回当前登录用户可用于图谱查询的指定文档版本。 */
+    @GetMapping("/{documentId}/versions")
+    public ApiResponse<List<DocumentVersionItem>> versions(@PathVariable String documentId, @RequestParam String tenantId,
+                                                           @RequestParam String userId) {
+        identityGuard.assertRequestIdentity(tenantId, userId);
+        return ApiResponse.of(catalog.versions(tenantId, userId, documentId));
     }
 
     /** 查询最近一次入库任务，供异步部署场景轮询处理进度。 */

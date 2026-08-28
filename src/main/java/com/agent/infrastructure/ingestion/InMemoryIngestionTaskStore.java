@@ -31,12 +31,7 @@ public class InMemoryIngestionTaskStore implements IngestionTaskStore {
     }
     @Override public boolean tryStart(KnowledgeDocumentChangedEvent event) {
         AtomicBoolean accepted = new AtomicBoolean();
-        events.compute(event.idempotencyKey(), (ignored, old) -> {
-            if (old == null) {
-                accepted.set(true);
-                return new IngestionTaskStatus(event.eventId(), event.tenantId(), event.documentId(), event.version(),
-                        IngestionState.PROCESSING, 1, null, Instant.now(clock), event.traceId());
-            }
+        events.computeIfPresent(event.idempotencyKey(), (ignored, old) -> {
             if (old.state() == IngestionState.QUEUED) {
                 accepted.set(true);
                 return new IngestionTaskStatus(old.eventId(), old.tenantId(), old.documentId(), old.version(),

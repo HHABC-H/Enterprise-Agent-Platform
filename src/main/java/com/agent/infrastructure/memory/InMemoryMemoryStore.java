@@ -23,7 +23,7 @@ public class InMemoryMemoryStore implements MemoryStore {
     private final Clock clock;
     public InMemoryMemoryStore(Clock clock) { this.clock = clock; }
     @Override
-    public List<MemoryEntry> read(String sessionId) {
+    public synchronized List<MemoryEntry> read(String sessionId) {
         SessionMemory session = sessions.get(key(sessionId));
         if (session == null || session.expired(clock)) {
             sessions.remove(key(sessionId));
@@ -32,14 +32,32 @@ public class InMemoryMemoryStore implements MemoryStore {
         return List.copyOf(session.entries);
     }
     @Override
-    public void append(String sessionId, MemoryEntry entry, int maxMessages, Duration ttl) {
+    public synchronized void appendTurn(String sessionId, MemoryEntry userEntry, MemoryEntry assistantEntry, int maxMessages, Duration ttl) {
         sessions.compute(key(sessionId), (key, current) -> {
             SessionMemory session = current == null || current.expired(clock) ? new SessionMemory() : current;
-            session.entries.addLast(entry);
+            session.entries.addLast(userEntry);
+            session.entries.addLast(assistantEntry);
             while (session.entries.size() > maxMessages) { session.entries.removeFirst(); }
             session.expiresAt = clock.instant().plus(ttl);
             return session;
         });
+    }
+    /** 仅保留给历史测试与旧调用方，新的对话链路必须使用原子双消息追加。 */
+    public synchronized void append(String sessionId, MemoryEntry entry, int maxMessages, Duration ttl) {
+        sessions.compute(key(sessionId), (key, current) -> {
+            SessionMemory session = current == null || current.expired(clock) ? new SessionMemory() : current;
+            session.entries.addLast(entry);
+            while (session.entries.size() > maxMessages) session.entries.removeFirst();
+            session.expiresAt = clock.instant().plus(ttl);
+            return session;
+        });
+    }
+    @Override
+    public synchronized void replace(String sessionId, List<MemoryEntry> entries, Duration ttl) {
+        SessionMemory session = new SessionMemory();
+        session.entries.addAll(entries);
+        session.expiresAt = clock.instant().plus(ttl);
+        sessions.put(key(sessionId), session);
     }
     private String key(String sessionId) { return "session:" + sessionId; }
     private static final class SessionMemory {

@@ -10,6 +10,6 @@ import com.agent.workflow.WorkflowState;
 import java.util.List;
 
 public record ChatResult(String answer, boolean refused, String refusalReason, List<RetrievalEvidence> evidence,
-                         List<WorkflowState> trace, String workflowId, boolean waitingApproval) {
-    public ChatResult { evidence = List.copyOf(evidence); trace = List.copyOf(trace); }
+                         List<WorkflowState> trace, String workflowId, boolean waitingApproval, List<WebSearchResult> webResults) {
+    public ChatResult { evidence = List.copyOf(evidence); trace = List.copyOf(trace); webResults = List.copyOf(webResults); }
 }

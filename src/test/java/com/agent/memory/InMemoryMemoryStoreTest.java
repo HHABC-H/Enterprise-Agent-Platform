@@ -7,6 +7,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.concurrent.CountDownLatch;
 import org.junit.jupiter.api.Test;
 
 class InMemoryMemoryStoreTest {
@@ -20,6 +21,24 @@ class InMemoryMemoryStoreTest {
         assertThat(store.read("one")).extracting(MemoryEntry::content).containsExactly("二", "三");
         clock.advance(Duration.ofSeconds(6));
         assertThat(store.read("one")).isEmpty();
+    }
+
+    @Test
+    void 并发追加完整轮次不会丢失消息() throws Exception {
+        MutableClock clock = new MutableClock(Instant.parse("2026-01-01T00:00:00Z"));
+        InMemoryMemoryStore store = new InMemoryMemoryStore(clock);
+        int workers = 20;
+        CountDownLatch ready = new CountDownLatch(workers);
+        CountDownLatch start = new CountDownLatch(1);
+        Thread[] threads = new Thread[workers];
+        for (int index = 0; index < workers; index++) {
+            final int value = index;
+            threads[index] = new Thread(() -> { ready.countDown(); try { start.await(); } catch (InterruptedException exception) { Thread.currentThread().interrupt(); }
+                store.appendTurn("parallel", new MemoryEntry("user", "q" + value, clock.instant()), new MemoryEntry("assistant", "a" + value, clock.instant()), 40, Duration.ofHours(24)); });
+            threads[index].start();
+        }
+        ready.await(); start.countDown(); for (Thread thread : threads) thread.join();
+        assertThat(store.read("parallel")).hasSize(40).allSatisfy(entry -> assertThat(entry.role()).isIn("user", "assistant"));
     }
 
     private static final class MutableClock extends Clock {

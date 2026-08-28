@@ -5,10 +5,12 @@
  */
 package com.agent.ingestion;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface DocumentRevisionStore {
     Optional<DocumentRevision> find(String tenantId, String documentId);
     Optional<DocumentRevision> find(String tenantId, String documentId, String version);
+    List<DocumentRevision> findAll(String tenantId);
     void save(DocumentRevision revision);
 }

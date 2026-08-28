@@ -26,11 +26,13 @@ class InMemoryIngestionTaskStoreTest {
     void 相同事件只处理一次且失败最多尝试三次() {
         InMemoryIngestionTaskStore store = new InMemoryIngestionTaskStore(Clock.fixed(Instant.parse("2026-08-24T00:00:00Z"), ZoneOffset.UTC));
         KnowledgeDocumentChangedEvent once = event("same");
+        store.enqueue(once);
         assertThat(store.tryStart(once)).isTrue();
         store.markSuccess(once);
         assertThat(store.tryStart(once)).isFalse();
 
         KnowledgeDocumentChangedEvent retry = event("retry");
+        store.enqueue(retry);
         for (int attempt = 1; attempt <= 3; attempt++) {
             assertThat(store.tryStart(retry)).isTrue();
             store.markFailure(retry, "临时错误", attempt == 3);
@@ -38,6 +40,14 @@ class InMemoryIngestionTaskStoreTest {
         assertThat(store.findLatest("tenant-a", "doc-retry").orElseThrow().state()).isEqualTo(IngestionState.FAILED);
         assertThat(store.findLatest("tenant-a", "doc-retry").orElseThrow().attempts()).isEqualTo(3);
     }
+    @Test
+    void missingTaskCannotBeStarted() {
+        InMemoryIngestionTaskStore store = new InMemoryIngestionTaskStore(Clock.fixed(Instant.parse("2026-08-24T00:00:00Z"), ZoneOffset.UTC));
+
+        assertThat(store.tryStart(event("missing"))).isFalse();
+        assertThat(store.findLatest("tenant-a", "doc-missing")).isEmpty();
+    }
+
     private KnowledgeDocumentChangedEvent event(String key) {
         return new KnowledgeDocumentChangedEvent(key, "tenant-a", "doc-" + key, "v1", "hash", DocumentOperation.UPSERT,
                 Instant.parse("2026-08-24T00:00:00Z"), "trace", key);

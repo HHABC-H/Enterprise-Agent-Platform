@@ -1,5 +1,6 @@
 package com.agent.auth;
 
+import com.agent.observability.BusinessOperation;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Arrays;
@@ -24,6 +25,7 @@ public class AuthService {
         this.clock = clock;
     }
 
+    @BusinessOperation("USER_REGISTER")
     public UserAccount register(String username, String password, String tenantId) {
         String normalizedUsername = normalizeUsername(username);
         UserAccount account = new UserAccount(UUID.randomUUID().toString(), normalizedUsername, passwordEncoder.encode(password),

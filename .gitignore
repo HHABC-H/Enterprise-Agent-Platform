@@ -2,8 +2,8 @@ target/
 .idea/
 .vscode/
 .env
-src/main/resources/application-local.yml
-src/main/resources/application-local-docker.yml
+src/main/resources/application-local.*
+src/main/resources/application-local-*.yml
 .firecrawl/
 frontend/node_modules/
 frontend/dist/

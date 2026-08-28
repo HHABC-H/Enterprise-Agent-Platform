@@ -36,6 +36,6 @@ public class WorkflowController {
     public ApiResponse<ChatResponse> approve(@PathVariable String workflowId, @Valid @RequestBody ApprovalRequest request) {
         WorkflowResult result = workflows.resume(workflowId, identityGuard.approverId(request.approverId()), request.version(), request.decision(), request.comment());
         return ApiResponse.of(new ChatResponse(null, !result.searchResponse().decision().sufficient(),
-                result.searchResponse().decision().refusalReason(), result.searchResponse().evidence().stream().map(EvidenceResponse::from).toList(), result.trace(), result.workflowId(), false, false));
+                result.searchResponse().decision().refusalReason(), result.searchResponse().evidence().stream().map(EvidenceResponse::from).toList(), result.trace(), result.workflowId(), false, false, java.util.List.of()));
     }
 }

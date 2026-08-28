@@ -7,6 +7,7 @@ package com.agent.infrastructure.ingestion;
 
 import com.agent.ingestion.DocumentRevision;
 import com.agent.ingestion.DocumentRevisionStore;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.context.annotation.Profile;
@@ -23,6 +24,12 @@ public class InMemoryDocumentRevisionStore implements DocumentRevisionStore {
     }
     @Override public Optional<DocumentRevision> find(String tenantId, String documentId, String version) {
         return Optional.ofNullable(revisions.get(key(tenantId, documentId, version)));
+    }
+    @Override public List<DocumentRevision> findAll(String tenantId) {
+        return revisions.values().stream()
+                .filter(item -> item.tenantId().equals(tenantId))
+                .sorted(java.util.Comparator.comparing(DocumentRevision::updatedAt).reversed())
+                .toList();
     }
     @Override public void save(DocumentRevision revision) {
         revisions.put(key(revision.tenantId(), revision.documentId(), revision.metadata().version()), revision);

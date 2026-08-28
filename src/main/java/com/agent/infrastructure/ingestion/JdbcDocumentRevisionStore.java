@@ -9,6 +9,7 @@ import com.agent.document.DocumentMetadata;
 import com.agent.ingestion.DocumentRevision;
 import com.agent.ingestion.DocumentRevisionStore;
 import java.sql.Timestamp;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.springframework.context.annotation.Profile;
@@ -30,6 +31,15 @@ public class JdbcDocumentRevisionStore implements DocumentRevisionStore {
         String sql = "SELECT tenant_id, document_id, markdown, source, version, permission_tags, allowed_user_ids, content_hash, updated_at "
                 + "FROM knowledge_document_revision WHERE tenant_id = :tenantId AND document_id = :documentId AND version = :version";
         return queryOne(sql, Map.of("tenantId", tenantId, "documentId", documentId, "version", version));
+    }
+    @Override public List<DocumentRevision> findAll(String tenantId) {
+        String sql = "SELECT tenant_id, document_id, '' AS markdown, source, version, permission_tags, allowed_user_ids, '' AS content_hash, updated_at "
+                + "FROM knowledge_document_revision WHERE tenant_id = :tenantId ORDER BY updated_at DESC";
+        return jdbc.query(sql, Map.of("tenantId", tenantId), (resultSet, row) -> new DocumentRevision(
+                resultSet.getString("tenant_id"), resultSet.getString("document_id"), resultSet.getString("markdown"),
+                new DocumentMetadata(resultSet.getString("tenant_id"), resultSet.getString("source"), resultSet.getString("version"),
+                        sqlArray(resultSet.getArray("permission_tags")), sqlArray(resultSet.getArray("allowed_user_ids"))),
+                resultSet.getString("content_hash"), resultSet.getTimestamp("updated_at").toInstant()));
     }
     private Optional<DocumentRevision> queryOne(String sql, Map<String, ?> values) {
         return jdbc.query(sql, values, (resultSet, row) -> new DocumentRevision(

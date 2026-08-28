@@ -9,6 +9,7 @@ import com.agent.api.TraceIdHolder;
 import com.agent.document.DocumentChunkStore;
 import com.agent.document.DocumentMetadata;
 import com.agent.extension.KnowledgeIngestionEventPublisher;
+import com.agent.observability.BusinessOperation;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -32,6 +33,7 @@ public class DocumentIngestionFacade {
     /**
      * 保存新版本并发布变更事件；内容哈希未变化时只标记跳过，避免重复切分和建索引。
      */
+    @BusinessOperation("DOCUMENT_UPSERT")
     public List<com.agent.document.Chunk> upsert(String documentId, String markdown, DocumentMetadata metadata) {
         String hash = ContentHashing.sha256(markdown);
         if (revisions.find(metadata.tenantId(), documentId, metadata.version())

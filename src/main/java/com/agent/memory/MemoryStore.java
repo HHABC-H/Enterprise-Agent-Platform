@@ -10,5 +10,6 @@ import java.util.List;
 
 public interface MemoryStore {
     List<MemoryEntry> read(String sessionId);
-    void append(String sessionId, MemoryEntry entry, int maxMessages, Duration ttl);
+    void appendTurn(String sessionId, MemoryEntry userEntry, MemoryEntry assistantEntry, int maxMessages, Duration ttl);
+    void replace(String sessionId, List<MemoryEntry> entries, Duration ttl);
 }

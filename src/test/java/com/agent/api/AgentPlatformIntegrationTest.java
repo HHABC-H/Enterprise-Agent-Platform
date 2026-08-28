@@ -1,6 +1,7 @@
 package com.agent.api;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -57,6 +58,20 @@ class AgentPlatformIntegrationTest {
     }
 
     @Test
+    void 主动记忆和关闭会话均从JWT取得当前用户身份() throws Exception {
+        String username = unique("memory-user");
+        String token = registerAndLogin(username, "memory-tenant");
+        mockMvc.perform(post("/api/memories").contentType(MediaType.APPLICATION_JSON).header("Authorization", "Bearer " + token)
+                        .content("{\"content\":\"语言偏好 Java\",\"type\":\"SEMANTIC\",\"importance\":0.9}"))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/chat").contentType(MediaType.APPLICATION_JSON).header("Authorization", "Bearer " + token)
+                        .content("{\"tenantId\":\"memory-tenant\",\"userId\":\"" + username + "\",\"sessionId\":\"memory-session\",\"question\":\"没有证据的问题\"}"))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/chat/sessions/memory-session/close").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void 审批和评测接口在JWT保护下保持可用() throws Exception {
         String owner = unique("workflow-owner");
         String token = registerAndLogin(owner, "workflow-tenant");
@@ -95,6 +110,46 @@ class AgentPlatformIntegrationTest {
                         .content(second))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.version").value("v2"));
+    }
+
+    @Test
+    void 图谱文档和版本选择器只返回当前用户可访问的数据() throws Exception {
+        String username = unique("catalog-user");
+        String token = registerAndLogin(username, "catalog-tenant");
+        String documentId = "catalog-doc-" + username;
+        String first = "{\"documentId\":\"" + documentId + "\",\"tenantId\":\"catalog-tenant\","
+                + "\"markdown\":\"# v1\\n\\n图谱版本一正文。\",\"source\":\"图谱测试文档\",\"version\":\"v1\",\"permissionTags\":[\"public\"]}";
+        mockMvc.perform(post("/api/documents/markdown").contentType(MediaType.APPLICATION_JSON).header("Authorization", "Bearer " + token).content(first))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/documents/markdown").contentType(MediaType.APPLICATION_JSON).header("Authorization", "Bearer " + token)
+                        .content(first.replace("# v1", "# v2").replace("版本一", "版本二").replace("\"version\":\"v1\"", "\"version\":\"v2\"")))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/documents/markdown").contentType(MediaType.APPLICATION_JSON).header("Authorization", "Bearer " + token)
+                        .content("{\"documentId\":\"private-doc-" + username + "\",\"tenantId\":\"catalog-tenant\",\"markdown\":\"# 私有\",\"source\":\"私有文档\",\"version\":\"v1\",\"permissionTags\":[\"user:another-user\"]}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/documents").header("Authorization", "Bearer " + token)
+                        .param("tenantId", "catalog-tenant").param("userId", username))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].documentId").value(documentId))
+                .andExpect(jsonPath("$.data[0].source").value("图谱测试文档"));
+        mockMvc.perform(get("/api/documents/{documentId}/versions", documentId).header("Authorization", "Bearer " + token)
+                        .param("tenantId", "catalog-tenant").param("userId", username))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[0].version").value("v1"))
+                .andExpect(jsonPath("$.data[1].version").value("v2"));
+        mockMvc.perform(get("/api/graph/relations").header("Authorization", "Bearer " + token)
+                        .param("tenantId", "catalog-tenant").param("userId", username).param("documentId", documentId)
+                        .param("version", "v1").param("maxHops", "1").param("limit", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.relations[0].type").value("CONTAINS"));
+        mockMvc.perform(get("/api/graph/relations").header("Authorization", "Bearer " + token)
+                        .param("tenantId", "catalog-tenant").param("userId", username).param("documentId", documentId)
+                        .param("version", "v2").param("maxHops", "1").param("limit", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.relations[0].type").value("CONTAINS"));
     }
 
     private String registerAndLogin(String username, String tenantId) throws Exception {

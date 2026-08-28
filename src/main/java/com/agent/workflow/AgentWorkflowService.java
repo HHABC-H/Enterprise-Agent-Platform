@@ -7,6 +7,7 @@ package com.agent.workflow;
 
 import com.agent.config.AgentPlatformProperties;
 import com.agent.metrics.PlatformMetrics;
+import com.agent.observability.BusinessOperation;
 import com.agent.api.TraceIdHolder;
 import com.agent.retrieval.SearchPipeline;
 import com.agent.retrieval.SearchResponse;
@@ -70,6 +71,7 @@ public class AgentWorkflowService {
     }
 
     /** 校验审批人、乐观锁版本和意见后恢复工作流；拒绝时返回拒绝结果而不再次执行检索。 */
+    @BusinessOperation("WORKFLOW_APPROVAL")
     public WorkflowResult resume(String workflowId, String approverId, long version, ApprovalDecision decision, String comment) {
         if (!approvers().contains(approverId)) { throw new IllegalArgumentException("当前用户没有审批权限。"); }
         if (comment == null || comment.isBlank() || comment.length() > 500) { throw new IllegalArgumentException("审批意见不能为空且不能超过 500 个字符。"); }

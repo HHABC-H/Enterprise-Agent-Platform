@@ -3,41 +3,101 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#0b1020">
-  <title>智知台 · 企业级 AI 智能体平台</title>
+  <meta name="theme-color" content="#ffffff">
+  <title>智忆 · AI 对话</title>
   <link rel="stylesheet" href="./src/app.css">
 </head>
 <body>
-  <div id="auth-gate" class="auth-gate" aria-live="polite">
+  <div id="auth-gate" class="auth-gate">
     <section class="auth-card">
-      <div class="auth-brand"><span class="brand-mark">智</span><div><strong>智知台</strong><small>Enterprise AI Platform</small></div></div>
-      <p class="eyebrow">安全访问</p><h1>登录后进入工作台</h1>
-      <p class="auth-description">登录令牌仅保存在当前浏览器，并自动随业务请求发送。注册用户默认仅具备普通用户权限。</p>
-      <div class="auth-tabs" role="tablist"><button class="auth-tab active" type="button" data-auth-tab="login">登录</button><button class="auth-tab" type="button" data-auth-tab="register">注册</button></div>
-      <form id="login-form" class="auth-form"><label>用户名<input name="username" autocomplete="username" required minlength="3" maxlength="64" placeholder="例如：alice"></label><label>密码<input name="password" type="password" autocomplete="current-password" required minlength="8" maxlength="128" placeholder="至少 8 位"></label><button class="button primary" type="submit">登录并进入工作台</button></form>
-      <form id="register-form" class="auth-form" hidden><label>用户名<input name="username" autocomplete="username" required minlength="3" maxlength="64" placeholder="3–64 个字符"></label><label>租户 ID<input name="tenantId" required maxlength="128" placeholder="例如：tenant-a"></label><label>密码<input name="password" type="password" autocomplete="new-password" required minlength="8" maxlength="128" placeholder="至少 8 位"></label><button class="button primary" type="submit">创建账户</button></form>
-      <p id="auth-message" class="auth-message" role="status"></p>
+      <div class="logo">◈ <strong>智忆</strong></div>
+      <h1>进入你的 AI 对话空间</h1>
+      <p>登录后，历史会话与个人记忆将按账号隔离保存。</p>
+      <div class="auth-tabs"><button type="button" class="active" data-tab="login">登录</button><button type="button" data-tab="register">注册</button></div>
+      <form id="login-form"><input name="username" placeholder="用户名" autocomplete="username" required minlength="3"><input name="password" type="password" placeholder="密码" autocomplete="current-password" required minlength="8"><button>登录</button></form>
+      <form id="register-form" hidden><input name="username" placeholder="用户名" autocomplete="username" required minlength="3"><input name="tenantId" placeholder="租户 ID" required><input name="password" type="password" placeholder="至少 8 位密码" autocomplete="new-password" required minlength="8"><button>创建账户</button></form>
+      <p id="auth-message" class="auth-message"></p>
     </section>
   </div>
+
   <div class="app-shell">
     <aside class="sidebar">
-      <a class="brand" href="#overview"><span class="brand-mark">智</span><span><strong>智知台</strong><small>Enterprise AI Platform</small></span></a>
-      <nav class="nav" aria-label="功能导航"><a class="nav-link active" href="#overview">概览</a><a class="nav-link" href="#ingest">知识入库</a><a class="nav-link" href="#chat">证据问答</a><a class="nav-link" href="#graph">关系图谱</a><a class="nav-link" href="#approval">人工审批</a><a class="nav-link" href="#evaluation">评测中心</a></nav>
-      <div class="sidebar-note"><span class="dot"></span><span>已连接同源 API<br>身份由 Bearer JWT 校验</span></div>
+      <div class="brand"><span>◈</span><strong>智忆</strong></div>
+      <button id="new-chat" class="new-chat">⊕ 开启新对话</button>
+      <nav class="feature-nav" aria-label="功能导航">
+        <button class="feature-nav-button" type="button" data-page="chat">◌ 智能对话</button>
+        <button class="feature-nav-button" type="button" data-page="ingest">↥ 知识入库</button>
+        <button class="feature-nav-button" type="button" data-page="graph">⌘ 关系图谱</button>
+        <button class="feature-nav-button" type="button" data-page="approval">✓ 人工审批</button>
+        <button class="feature-nav-button" type="button" data-page="evaluation">▤ 评测中心</button>
+      </nav>
+      <section id="chat-sessions" class="chat-only">
+        <div class="sidebar-heading">最近对话</div>
+        <nav id="session-list" class="session-list"><p class="empty-sessions">正在加载会话…</p></nav>
+      </section>
+      <div class="account"><span id="identity">未登录</span><button id="logout" title="退出登录">退出</button></div>
     </aside>
-    <main class="main-content">
-      <header class="topbar"><div><p class="eyebrow">知识工程工作台</p><h1>证据驱动的企业知识问答</h1></div><div class="topbar-actions"><div class="health" id="health-status"><span class="status-dot"></span><span>正在检查服务状态</span></div><div class="identity-summary"><strong id="identity-username">未登录</strong><span id="identity-details">请先登录</span></div><button id="logout-button" class="button tertiary" type="button">退出登录</button></div></header>
-      <section id="overview" class="hero section-anchor"><div><p class="eyebrow">安全检索 · 可追溯答案 · 人工可控</p><h2>从知识入库到可信回答，<br>一个页面完成闭环。</h2><p class="hero-copy">提交 Markdown 文档后，系统先执行租户与权限过滤，再使用混合检索和证据校验生成答案。证据不足时会明确拒答。</p><div class="hero-actions"><a class="button primary" href="#ingest">开始录入知识</a><a class="button secondary" href="#chat">发起一次问答</a></div></div><div class="hero-panel"><div class="flow-node">Markdown 文档</div><div class="flow-line"></div><div class="flow-node emphasis">权限感知检索</div><div class="flow-line"></div><div class="flow-node">证据答案</div><p>权限预过滤 · RRF 融合 · 证据校验</p></div></section>
-      <section class="metric-grid"><article class="metric-card"><span class="metric-icon">01</span><h3>权限隔离</h3><p>租户、用户与文档标签在召回前完成过滤。</p></article><article class="metric-card"><span class="metric-icon">02</span><h3>混合检索</h3><p>向量与全文结果并行检索，RRF 融合排序。</p></article><article class="metric-card"><span class="metric-icon">03</span><h3>拒绝编造</h3><p>缺少充分证据时返回拒答原因，不生成臆测答案。</p></article><article class="metric-card"><span class="metric-icon">04</span><h3>人工审批</h3><p>关键问答可先暂停，待审批后再继续。</p></article></section>
-      <section id="ingest" class="work-section section-anchor"><div class="section-heading"><div><p class="eyebrow">01 / KNOWLEDGE INGESTION</p><h2>知识入库</h2><p>上传 Markdown 文档，系统会创建当前版本并返回切分后的 Chunk 信息。</p></div></div><div class="two-column"><form id="ingest-form" class="panel form-panel"><div class="field-grid"><label>文档 ID<input name="documentId" placeholder="可选，留空自动生成" value="platform-handbook"></label><label>租户 ID<input name="tenantId" class="identity-tenant" readonly required></label><label>文档来源<input name="source" required value="产品手册"></label><label>版本<input name="version" required value="v1"></label><label>权限标签<input name="permissionTags" value="public" placeholder="逗号分隔"></label><label>允许用户<input name="allowedUserIds" placeholder="逗号分隔，留空表示仅标签授权"></label></div><label class="file-picker">上传文档文件<input name="documentFile" type="file" accept=".md,.markdown,.txt,text/markdown,text/plain" required><span class="file-picker-hint">支持 .md、.markdown、.txt 文本文件，浏览器会在提交前读取文件内容。</span></label><p id="selected-file" class="selected-file">尚未选择文件</p><button class="button primary" type="submit">上传并切分文档</button></form><section class="panel result-panel"><div class="panel-title"><h3>入库结果</h3><span id="ingest-badge" class="badge muted">等待提交</span></div><div id="ingest-result" class="empty-state">提交文档后，这里会展示文档 ID、Chunk 数量与首批切分结果。</div><div class="status-query"><button id="query-ingestion-status" class="button tertiary" type="button">查询入库状态</button><pre id="ingestion-status" class="api-output" hidden></pre></div></section></div></section>
-      <section id="chat" class="work-section section-anchor"><div class="section-heading"><div><p class="eyebrow">02 / EVIDENCE Q&A</p><h2>证据问答</h2><p>先检索，后回答。答案、拒答原因、证据和状态机轨迹都会完整展示。</p></div></div><div class="two-column"><form id="chat-form" class="panel form-panel"><div class="field-grid"><label>租户 ID<input name="tenantId" class="identity-tenant" readonly required></label><label>用户 ID<input name="userId" class="identity-user" readonly required></label><label>会话 ID<input name="sessionId" required value="session-demo-01"></label><label class="switch-field"><input name="requireApproval" type="checkbox"><span>回答前需要人工审批</span></label></div><label>问题<textarea name="question" required rows="5">系统目前支持哪些文档？</textarea></label><button class="button primary" type="submit">检索并生成回答</button></form><section class="panel result-panel"><div class="panel-title"><h3>回答与证据</h3><span id="chat-badge" class="badge muted">等待提问</span></div><div id="chat-result" class="empty-state">提交问题后，这里将展示回答或拒答原因，以及可追溯的证据。</div></section></div></section>
-      <section id="graph" class="work-section section-anchor"><div class="section-heading"><div><p class="eyebrow">03 / KNOWLEDGE GRAPH</p><h2>关系图谱</h2><p>按租户、文档和版本检索父子 Chunk 与确定性实体关系。</p></div></div><div class="two-column"><form id="graph-form" class="panel form-panel"><div class="field-grid"><label>租户 ID<input name="tenantId" class="identity-tenant" readonly required></label><label>用户 ID<input name="userId" class="identity-user" readonly required></label><label>文档 ID<input name="documentId" required value="platform-handbook"></label><label>版本<input name="version" required value="v1"></label><label>最大跳数<input name="maxHops" type="number" min="1" max="3" value="3"></label><label>结果上限<input name="limit" type="number" min="1" max="50" value="20"></label></div><button class="button primary" type="submit">查询关系</button></form><section class="panel result-panel"><div class="panel-title"><h3>关系结果</h3><span id="graph-badge" class="badge muted">等待查询</span></div><div id="graph-result" class="empty-state">查询后将以关系卡片展示图谱中的节点和边。</div></section></div></section>
-      <section id="approval" class="work-section section-anchor"><div class="section-heading"><div><p class="eyebrow">04 / HUMAN IN THE LOOP</p><h2>人工审批</h2><p>审批权限由登录身份的 APPROVER 角色决定，注册接口不能自行授予该角色。</p></div></div><div class="two-column"><form id="approval-form" class="panel form-panel"><div id="approval-access-note" class="access-note" hidden></div><div class="field-grid"><label>工作流 ID<input name="workflowId" required placeholder="由待审批问答自动带入"></label><label>审批人<input name="approverId" class="identity-user" readonly required></label><label>版本<input name="version" type="number" min="0" required value="0"></label><label>审批决定<select name="decision"><option value="APPROVE">通过</option><option value="REJECT">拒绝</option></select></label></div><label>审批意见<textarea name="comment" required rows="4">已核对证据来源。</textarea></label><button id="approval-submit" class="button primary" type="submit">提交审批</button></form><section class="panel result-panel"><div class="panel-title"><h3>审批结果</h3><span id="approval-badge" class="badge muted">等待审批</span></div><div id="approval-result" class="empty-state">待审批工作流会自动填入工作流 ID；也可手动输入已有 ID。</div></section></div></section>
-      <section id="evaluation" class="work-section section-anchor"><div class="section-heading"><div><p class="eyebrow">05 / EVALUATION</p><h2>评测中心</h2><p>运行内置 JSON 样例，获取当前最小闭环的评测结果。</p></div></div><section class="panel evaluation-panel"><div><h3>内置评测集</h3><p>用于验证基本检索、证据拒答和回答行为。</p></div><button id="run-evaluation" class="button primary" type="button">运行最小评测</button><pre id="evaluation-result" class="api-output" hidden></pre></section></section>
-      <footer>智知台 · 企业级 AI 智能体平台 MVP · 所有答案以返回证据为准</footer>
+
+    <main class="chat-main">
+      <section id="page-chat" class="chat-page" data-page-view="chat">
+        <header class="chat-header"><div><h1 id="chat-title">新对话</h1><p>短期记忆 · 历史记忆 · 知识库</p></div><span id="search-state">联网搜索关闭</span></header>
+        <section id="messages" class="messages"><div class="welcome"><div class="welcome-mark">◈</div><h2>你好，我是智忆</h2><p>我会结合当前对话、你的历史记忆和已授权知识库回答。需要最新信息时，请开启智能搜索。</p></div></section>
+        <form id="chat-form" class="composer">
+          <textarea id="question" name="question" rows="1" placeholder="给智忆发送消息" required></textarea>
+          <div class="composer-footer"><label class="search-toggle"><input id="web-search" type="checkbox"><span>◎ 智能搜索</span></label><button id="send" type="submit" aria-label="发送">↑</button></div>
+        </form>
+        <p id="status" class="status"></p>
+      </section>
+
+      <section id="page-ingest" class="feature-page" data-page-view="ingest" hidden>
+        <header class="feature-header"><div><p class="page-kicker">KNOWLEDGE INGESTION</p><h1>知识入库</h1><p>上传 Markdown 或文本文件，系统会自动生成文档标识与版本。</p></div><button class="back-to-chat" type="button" data-page="chat">返回对话</button></header>
+        <div class="feature-grid">
+          <form id="ingest-form" class="tool-card tool-form">
+            <label>选择文档<input name="documentFile" type="file" accept=".md,.markdown,.txt,text/markdown,text/plain" required></label>
+            <p id="selected-file" class="field-note">支持 .md、.markdown、.txt 文件。</p>
+            <label>权限标签<input name="permissionTags" value="public" placeholder="多个标签用逗号分隔"></label>
+            <label>允许用户<input name="allowedUserIds" placeholder="可选，多个用户名用逗号分隔"></label>
+            <button type="submit">上传并入库</button>
+          </form>
+          <section class="tool-card"><div class="card-heading"><h2>入库结果</h2><span id="ingest-badge" class="badge">等待提交</span></div><pre id="ingest-result" class="api-output">提交后将展示文档 ID、版本与切分结果。</pre><button id="query-ingestion-status" class="secondary-button" type="button">查询最近入库状态</button></section>
+        </div>
+      </section>
+
+      <section id="page-graph" class="feature-page" data-page-view="graph" hidden>
+        <header class="feature-header"><div><p class="page-kicker">KNOWLEDGE GRAPH</p><h1>关系图谱</h1><p>按当前租户、文档和版本查询已授权的实体关系。</p></div><button class="back-to-chat" type="button" data-page="chat">返回对话</button></header>
+        <div class="feature-grid">
+          <form id="graph-form" class="tool-card tool-form">
+            <label>文档 ID<select name="documentId" required disabled><option value="">进入页面后加载文档</option></select></label>
+            <label>版本<select name="version" required disabled><option value="">请先选择文档</option></select></label>
+            <p id="graph-selection-status" class="field-note" role="status">进入页面后加载当前账号可访问的文档。</p>
+            <div class="two-inputs"><label>最大跳数<input name="maxHops" type="number" min="1" max="3" value="3"></label><label>结果上限<input name="limit" type="number" min="1" max="50" value="20"></label></div>
+            <button type="submit">查询关系</button>
+          </form>
+          <section class="tool-card"><div class="card-heading"><h2>查询结果</h2><span id="graph-badge" class="badge">等待查询</span></div><pre id="graph-result" class="api-output">选择已入库的文档后查询图谱关系。</pre></section>
+        </div>
+      </section>
+
+      <section id="page-approval" class="feature-page" data-page-view="approval" hidden>
+        <header class="feature-header"><div><p class="page-kicker">HUMAN IN THE LOOP</p><h1>人工审批</h1><p>审批权限由登录账户的角色决定，普通用户只能查看自身待处理事项。</p></div><button class="back-to-chat" type="button" data-page="chat">返回对话</button></header>
+        <div class="feature-grid">
+          <section class="tool-card"><div class="card-heading"><h2>待审批事项</h2><button id="refresh-pending" class="text-button" type="button">刷新</button></div><div id="pending-list" class="pending-list">进入此页面后自动加载。</div></section>
+          <form id="approval-form" class="tool-card tool-form">
+            <div class="card-heading"><h2>提交审批</h2><span id="approval-badge" class="badge">等待提交</span></div>
+            <label>工作流 ID<input name="workflowId" required placeholder="从待审批列表选择"></label>
+            <div class="two-inputs"><label>版本<input name="version" type="number" min="0" required value="0"></label><label>决定<select name="decision"><option value="APPROVE">通过</option><option value="REJECT">拒绝</option></select></label></div>
+            <label>审批意见<textarea name="comment" rows="4" required placeholder="填写审批理由"></textarea></label>
+            <button type="submit">提交审批</button>
+            <pre id="approval-result" class="api-output">审批结果将在这里显示。</pre>
+          </form>
+        </div>
+      </section>
+
+      <section id="page-evaluation" class="feature-page" data-page-view="evaluation" hidden>
+        <header class="feature-header"><div><p class="page-kicker">EVALUATION CENTER</p><h1>评测中心</h1><p>运行系统内置评测集，查看当前检索与拒答策略的最小闭环结果。</p></div><button class="back-to-chat" type="button" data-page="chat">返回对话</button></header>
+        <section class="tool-card evaluation-card"><div><h2>最小评测集</h2><p>用于验证基本检索、证据拒答和回答行为。</p></div><button id="run-evaluation" type="button">运行最小评测</button><pre id="evaluation-result" class="api-output">尚未运行评测。</pre></section>
+      </section>
     </main>
   </div>
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script type="module" src="./src/app.js"></script>
 </body>
 </html>

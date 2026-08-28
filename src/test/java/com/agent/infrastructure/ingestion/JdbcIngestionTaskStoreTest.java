@@ -30,8 +30,10 @@ class JdbcIngestionTaskStoreTest {
         store.enqueue(event);
         store.tryStart(event);
 
+        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Map<String, ?>> parameters = ArgumentCaptor.forClass(Map.class);
-        verify(jdbc, org.mockito.Mockito.times(2)).update(anyString(), parameters.capture());
+        verify(jdbc, org.mockito.Mockito.times(2)).update(sql.capture(), parameters.capture());
         assertThat(parameters.getAllValues()).allSatisfy(value -> assertThat(value.get("updatedAt")).isInstanceOf(Timestamp.class));
+        assertThat(sql.getAllValues().get(1)).startsWith("UPDATE knowledge_ingestion_task");
     }
 }

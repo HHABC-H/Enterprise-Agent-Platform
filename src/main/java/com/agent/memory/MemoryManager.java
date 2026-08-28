@@ -8,6 +8,7 @@ package com.agent.memory;
 import com.agent.config.AgentPlatformProperties;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import org.springframework.stereotype.Service;
 
@@ -23,7 +24,9 @@ public class MemoryManager {
     }
     public List<MemoryEntry> read(String sessionId) { return store.read(sessionId); }
     public void append(String sessionId, String role, String content) {
-        store.append(sessionId, new MemoryEntry(role, content, clock.instant()), properties.getMemory().getMaxMessages(),
-                Duration.ofSeconds(properties.getMemory().getTtlSeconds()));
+        List<MemoryEntry> entries = new ArrayList<>(store.read(sessionId));
+        entries.add(new MemoryEntry(role, content, clock.instant()));
+        while (entries.size() > properties.getMemory().getMaxMessages()) entries.remove(0);
+        store.replace(sessionId, entries, Duration.ofSeconds(properties.getMemory().getTtlSeconds()));
     }
 }

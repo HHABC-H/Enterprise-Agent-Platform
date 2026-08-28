@@ -1,0 +1,244 @@
+Codex，我需要你在现有项目基础上实现 Agent 的多层记忆系统。以下是详细需求：
+
+---
+
+## 一、项目背景
+
+技术栈：Java 17 + Spring Boot 3.x + LangChain4j + Redis + PgVector
+
+当前状态：
+- 已有 Redis 会话记忆适配器（Spring Session 或自定义）
+- 已有 PgVector 向量数据库集成
+- 已有会话管理（侧边栏会话列表）
+- 已有 ChatController 处理对话请求
+
+---
+
+## 二、需要实现的功能
+
+### 1. 短期记忆（Short-term Memory）
+
+**存储位置**：Redis
+
+**数据结构**：
+Key: session:memory:{sessionId}
+Value: List<Message> // 按时间顺序存储
+TTL: 24 小时
+
+text
+
+**逻辑**：
+- 每次对话，把 user message + assistant message 追加到列表
+- 维护一个**滑动窗口（20 条消息）**，超过则移除最早的消息
+- 每次调 LLM 时，从 Redis 取完整列表作为 messages 传入
+
+**压缩策略**：
+- 设置 token 阈值（如 15000 token）
+- 超过阈值时触发压缩：
+  - 保留最近 5 轮对话（完整保留）
+  - 前 15 轮调用 LLM 生成摘要（使用 LangChain4j 的 summarization）
+  - 摘要作为 system 消息放在列表最前面
+  - 压缩后的列表写回 Redis
+
+**代码要实现的类**：
+- `ShortTermMemoryService` - CRUD + 压缩逻辑
+- `MemoryCompressor` - 摘要压缩实现
+
+---
+
+### 2. 长期记忆（Long-term Memory）
+
+**存储位置**：PgVector
+
+**存储内容**：每条记忆包含
+- `content`：记忆原文（如 "用户偏好 Python 简洁风格"）
+- `embedding`：1024 维向量（用 text-embedding-v4）
+- `metadata`：{ userId, sessionId, timestamp, type, importance }
+
+**记忆类型**（用 type 字段区分）：
+- `SEMANTIC`：事实性偏好（用户偏好、个人信息）
+- `EPISODIC`：历史事件（"上周写过爬虫，遇到反爬"）
+- `PROCEDURAL`：行为模式（"该用户喜欢先确认需求再写代码"）
+
+**写入时机**：
+- 会话结束后（用户关闭会话 / 超时）
+- 定时任务每 3 小时扫描活跃会话，生成摘要写入
+- 用户主动触发（如"记住这个偏好"）
+
+**检索逻辑**：
+- 用户发起新会话时，用当前问题做 embedding
+- 在 PgVector 中做相似度检索，取 Top-5
+- **必须按 userId 过滤**，只能查当前用户的记忆
+- 检索时叠加时间衰减：`score = similarity * time_decay_factor`
+  - 7 天内：factor = 1.0
+  - 7-30 天：factor = 0.7
+  - 30 天以上：factor = 0.3
+
+**注入方式**：
+- 检索到的记忆拼接到 system prompt 中
+- 格式："【历史记忆】{content}（{timestamp}）"
+
+**代码要实现的类**：
+- `LongTermMemoryService` - 写入/检索
+- `MemoryRetrievalService` - 带时间衰减的检索
+- `SessionSummarizer` - 定时总结会话
+
+---
+
+### 3. 结构化记忆（Structured Memory）
+
+**存储位置**：Redis Hash，Key: `user:profile:{userId}`
+
+**数据结构**：
+```json
+{
+  "preferred_language": "编程语言偏好",
+  "coding_style": "代码风格",
+  "tech_stack": ["技术栈列表"],
+  "project_budget": "预算上限",
+  "role": "用户角色（开发者/产品/管理者）",
+  "updated_at": "2026-08-27T10:00:00"
+}
+抽取逻辑：
+
+每次会话结束后，用 LLM 从对话中抽取结构化信息
+
+Prompt 模板：
+
+text
+从以下对话中提取用户的结构化偏好，输出 JSON，如果某个字段没有信息则留空：
+
+对话：{conversation_history}
+
+输出格式：
+{
+  "preferred_language": "",
+  "coding_style": "",
+  "tech_stack": [],
+  "project_budget": "",
+  "role": ""
+}
+抽取结果覆盖更新到 Redis
+
+注入方式：
+
+每次新会话开始时，从 Redis 取用户画像，拼接到 system prompt
+
+代码要实现的类：
+
+StructuredMemoryExtractor - LLM 抽取逻辑
+
+UserProfileService - 读写 Redis 画像
+
+4. 权限隔离（关键）
+所有记忆操作必须带 userId：
+
+java
+// 短期记忆
+ShortTermMemory.get(sessionId, userId)   // 只能查自己的
+ShortTermMemory.save(sessionId, userId, messages)
+
+// 长期记忆
+LongTermMemory.retrieve(query, userId, topK)  // WHERE user_id = ?
+LongTermMemory.save(content, userId, metadata)
+
+// 画像
+UserProfile.get(userId)
+UserProfile.save(userId, profile)
+会话与用户的绑定：
+
+每次请求从 Token/Session 中解析 userId
+
+所有记忆操作都传入 userId
+
+Redis Key 和数据库记录都包含 userId 维度
+
+5. 定时任务
+每 3 小时执行：
+
+java
+@Scheduled(cron = "0 0 */3 * * *")
+public void summarizeActiveSessions() {
+    // 1. 查 Redis 中最近 3 小时有活动的会话
+    // 2. 对每个会话，获取完整历史
+    // 3. 调用 LLM 生成摘要（200 字以内）
+    // 4. 摘要作为 EPISODIC 类型写入 PgVector
+    // 5. 同时触发结构化抽取，更新用户画像
+}
+每天凌晨 2 点执行：
+
+java
+@Scheduled(cron = "0 0 2 * * *")
+public void cleanupExpiredMemories() {
+    // 1. 删除 30 天以上的低重要性记忆（importance < 0.5）
+    // 2. 对冲突记忆做合并（如两个偏好矛盾，保留新的）
+    // 3. 调用 LLM 审查老化记忆，标记过时的
+}
+三、集成到现有对话流程
+修改 ChatController 的流程：
+
+text
+用户发送消息
+    ↓
+1. 解析 userId（从 Token/Session）
+    ↓
+2. 从 Redis 获取短期记忆（session:memory:{sessionId}）
+    ↓
+3. 从 PgVector 检索长期记忆（按 userId 过滤）
+    ↓
+4. 从 Redis 获取用户画像（user:profile:{userId}）
+    ↓
+5. 组装 System Prompt：
+   【用户画像】...
+   【历史记忆】...
+   【当前任务】...
+    ↓
+6. 调用 LLM（传入短期记忆 + 上述 System Prompt）
+    ↓
+7. 将 user message + assistant message 追加到短期记忆
+    ↓
+8. 检查短期记忆是否超阈值，超则触发压缩
+    ↓
+9. 写回 Redis
+    ↓
+10. 返回响应
+四、配置文件
+在 application.yml 中添加：
+
+yaml
+memory:
+  short-term:
+    max-messages: 20
+    max-tokens: 15000
+    ttl-hours: 24
+  long-term:
+    top-k: 5
+    similarity-threshold: 0.7
+    time-decay:
+      recent-days: 7
+      recent-factor: 1.0
+      medium-days: 30
+      medium-factor: 0.7
+      old-factor: 0.3
+  schedule:
+    session-summary: "0 0 */3 * * *"
+    cleanup: "0 0 2 * * *"
+五、实现要求
+代码风格：遵循现有项目的包结构和命名规范
+
+依赖：使用项目已有的 LangChain4j、RedisTemplate、JdbcTemplate
+
+测试：每个 Service 提供单元测试
+
+日志：关键操作（压缩、检索、定时任务）打 INFO 日志
+
+异常处理：记忆操作失败不应中断主流程，记录 WARN 日志后降级
+
+六、验收标准
+□ 同一会话内，LLM 能记住前 20 轮对话
+□ 超过 20 轮或 15000 token 时，自动压缩（摘要 + 保留最近 5 轮）
+□ 新会话开始时，能检索到历史记忆并注入 prompt
+□ 不同用户的记忆完全隔离
+□ 每 3 小时自动生成会话摘要并入库
+□ 用户画像能从对话中自动抽取并更新
+请按优先级 P0 → P1 → P2 分步实现，每次提交一个可运行的模块。

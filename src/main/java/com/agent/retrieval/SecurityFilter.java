@@ -19,9 +19,14 @@ public class SecurityFilter {
     }
 
     private boolean canAccess(String userId, Chunk chunk) {
-        return chunk.metadata().permissionTags().isEmpty()
-                || chunk.metadata().permissionTags().contains("public")
-                || chunk.metadata().permissionTags().contains("user:" + userId)
-                || chunk.metadata().allowedUserIds().contains(userId);
+        return canAccess(userId, chunk.metadata());
+    }
+
+    /** 复用检索权限规则，避免文档选择器泄露无权访问的文档或版本。 */
+    public boolean canAccess(String userId, com.agent.document.DocumentMetadata metadata) {
+        return metadata.permissionTags().isEmpty()
+                || metadata.permissionTags().contains("public")
+                || metadata.permissionTags().contains("user:" + userId)
+                || metadata.allowedUserIds().contains(userId);
     }
 }

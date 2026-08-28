@@ -35,7 +35,7 @@ public class Neo4jGraphRelationSearchAdapter implements GraphRelationSearchPort 
     private final PlatformMetrics metrics;
     public Neo4jGraphRelationSearchAdapter(Driver driver, PlatformMetrics metrics) { this.driver = driver; this.metrics = metrics; }
 
-    /** 先清除文档的旧版本节点，再在同一写事务中写入文档、父块、子块和实体关系。 */
+    /** 仅替换相同版本的节点，保留其他版本供图谱选择器查询。 */
     @Override
     public void replaceDocument(String tenantId, String documentId, String version, DocumentIndex index) {
         DocumentMetadataView metadata = metadata(index);
@@ -45,7 +45,8 @@ public class Neo4jGraphRelationSearchAdapter implements GraphRelationSearchPort 
                 document.put("id", documentKey(tenantId, documentId, version));
                 document.put("permissionTags", metadata.permissionTags());
                 document.put("allowedUserIds", metadata.allowedUserIds());
-                transaction.run("MATCH (node {tenantId: $tenantId, documentId: $documentId}) DETACH DELETE node", Map.of("tenantId", tenantId, "documentId", documentId)).consume();
+                transaction.run("MATCH (node {tenantId: $tenantId, documentId: $documentId, version: $version}) DETACH DELETE node",
+                        Map.of("tenantId", tenantId, "documentId", documentId, "version", version)).consume();
                 transaction.run("CREATE (d:Document $document)", Map.of("document", document)).consume();
                 for (ParentChunk parent : index.parents()) { writeParent(transaction, tenantId, documentId, version, parent); }
                 for (Chunk chunk : index.chunks()) { writeChunk(transaction, tenantId, documentId, version, chunk); }

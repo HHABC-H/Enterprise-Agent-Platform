@@ -15,6 +15,9 @@ import org.springframework.stereotype.Component;
 public class EvidenceBoundTemplateAnswerGenerator implements AnswerGenerator {
     @Override
     public String generate(String question, List<RetrievalEvidence> evidence) {
+        if (evidence.isEmpty()) {
+            return "当前未配置可用的大模型，且知识库没有匹配内容。请配置模型后再试，或先上传相关知识文档。";
+        }
         RetrievalEvidence top = evidence.get(0);
         String content = top.chunk().content().length() > 800 ? top.chunk().content().substring(0, 800) + "…" : top.chunk().content();
         return "根据已授权文档检索到的证据：\n" + content;

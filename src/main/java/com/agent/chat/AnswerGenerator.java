@@ -6,8 +6,17 @@
 package com.agent.chat;
 
 import com.agent.retrieval.RetrievalEvidence;
+import com.agent.memory.MemoryEntry;
 import java.util.List;
 
 public interface AnswerGenerator {
     String generate(String question, List<RetrievalEvidence> evidence);
+
+    default String generate(String question, List<RetrievalEvidence> evidence, List<MemoryEntry> conversation) {
+        return generate(question, evidence);
+    }
+
+    default String generate(ChatContext context) {
+        return generate(context.question(), context.evidence(), context.conversation());
+    }
 }

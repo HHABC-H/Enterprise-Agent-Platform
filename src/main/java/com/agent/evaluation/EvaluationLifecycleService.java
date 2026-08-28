@@ -5,6 +5,7 @@ import com.agent.chat.ChatResult;
 import com.agent.chat.ChatService;
 import com.agent.config.AgentPlatformProperties;
 import com.agent.metrics.PlatformMetrics;
+import com.agent.observability.BusinessOperation;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Clock;
@@ -33,6 +34,7 @@ public class EvaluationLifecycleService {
                                       @Qualifier("evaluationExecutor") Executor executor, Clock clock, AgentPlatformProperties properties) {
         this.repository = repository; this.chatService = chatService; this.ragas = ragas; this.metrics = metrics; this.executor = executor; this.clock = clock; this.properties = properties;
     }
+    @BusinessOperation("EVALUATION_DATASET_CREATE")
     public EvaluationDatasetVersion createDataset(String tenantId, String actorId, String name, String datasetId, List<SampleInput> inputs) {
         if (name == null || name.isBlank() || inputs == null || inputs.isEmpty()) { throw new IllegalArgumentException("数据集名称和样例不能为空。"); }
         String effectiveId = datasetId == null || datasetId.isBlank() ? UUID.randomUUID().toString() : datasetId;
@@ -46,6 +48,7 @@ public class EvaluationLifecycleService {
     public List<EvaluationDatasetVersion> listDatasets(String tenantId) { return repository.listDatasets(tenantId); }
     public EvaluationDatasetVersion getDataset(String tenantId, String datasetId, int version) { return repository.findDataset(tenantId, datasetId, version).orElseThrow(() -> new IllegalArgumentException("未找到评测数据集版本。")); }
     public List<EvaluationSample> exportSamples(String tenantId, String datasetId, int version) { EvaluationDatasetVersion item = getDataset(tenantId, datasetId, version); return repository.samples(tenantId, item.id()); }
+    @BusinessOperation("EVALUATION_RUN_START")
     public EvaluationRun start(String tenantId, String actorId, String datasetId, int version) {
         EvaluationDatasetVersion dataset = getDataset(tenantId, datasetId, version);
         EvaluationRun run = new EvaluationRun(UUID.randomUUID().toString(), tenantId, dataset.id(), EvaluationRunState.QUEUED, actorId, "unknown", "default", properties.getLlm().getModelName(), "template-v1", Instant.now(clock), null, null, null, null, 0);
@@ -54,12 +57,14 @@ public class EvaluationLifecycleService {
     /** 重启后仅重新排队未完成评测，绝不把已完成记录重新执行。 */
     @EventListener(ApplicationReadyEvent.class)
     public void recoverUnfinishedRuns() { repository.recoverableRuns().forEach(run -> executor.execute(() -> execute(run.id(), run.tenantId()))); }
+    @BusinessOperation("EVALUATION_RUN_RERUN")
     public EvaluationRun rerun(String tenantId, String actorId, String runId) {
         EvaluationRun previous = getRun(tenantId, runId); EvaluationDatasetVersion dataset = repository.listDatasets(tenantId).stream().filter(item -> item.id().equals(previous.datasetVersionId())).findFirst().orElseThrow(() -> new IllegalArgumentException("原评测数据集不存在。"));
         return start(tenantId, actorId, dataset.datasetId(), dataset.version());
     }
     public EvaluationRun getRun(String tenantId, String runId) { return repository.findRun(tenantId, runId).orElseThrow(() -> new IllegalArgumentException("未找到评测运行。")); }
     public List<EvaluationCaseResult> results(String tenantId, String runId) { getRun(tenantId, runId); return repository.results(tenantId, runId); }
+    @BusinessOperation("EVALUATION_RUN_CANCEL")
     public EvaluationRun cancel(String tenantId, String runId) {
         EvaluationRun current = getRun(tenantId, runId);
         EvaluationRun cancelled = new EvaluationRun(current.id(), current.tenantId(), current.datasetVersionId(), EvaluationRunState.CANCELLED, current.requestedBy(), current.codeVersion(), current.configVersion(), current.modelName(), current.promptHash(), current.createdAt(), null, Instant.now(clock), null, current.summary(), current.rowVersion() + 1);
@@ -67,6 +72,7 @@ public class EvaluationLifecycleService {
         return cancelled;
     }
     public List<BadCase> badCases(String tenantId, BadCaseStatus status) { return repository.listBadCases(tenantId, status); }
+    @BusinessOperation("BAD_CASE_STATUS_CHANGE")
     public BadCase changeBadCase(String tenantId, String id, BadCaseStatus status, String note) {
         BadCase current = repository.findBadCase(tenantId, id).orElseThrow(() -> new IllegalArgumentException("未找到 Bad Case。"));
         BadCase changed = new BadCase(current.id(), current.tenantId(), current.sourceRunId(), current.sourceSampleId(), current.stableKey(), current.failureCategory(), current.severity(), status, summarize(note), current.createdAt(), Instant.now(clock), current.rowVersion() + 1);
@@ -74,6 +80,7 @@ public class EvaluationLifecycleService {
         if (status == BadCaseStatus.CLOSED) { metrics.recordBadCaseClosed(); }
         return changed;
     }
+    @BusinessOperation("BAD_CASE_PROMOTE")
     public EvaluationDatasetVersion promote(String tenantId, String actorId, String badCaseId, String targetDatasetId) {
         BadCase bad = repository.findBadCase(tenantId, badCaseId).orElseThrow(() -> new IllegalArgumentException("未找到 Bad Case。"));
         EvaluationRun sourceRun = getRun(tenantId, bad.sourceRunId());
